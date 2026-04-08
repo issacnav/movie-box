@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Theatre Seat Selector</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        .seat-map {
+            display: grid;
+            grid-template-columns: repeat(10, 40px);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .seat {
+            width: 40px;
+            height: 40px;
+            background-color: #7d7d7d; /* Available seat */
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .seat.selected {
+            background-color: #4caf50; /* Selected seat */
+        }
+        .seat.occupied {
+            background-color: #d9534f; /* Booked seat */
+            cursor: not-allowed;
+        }
+        .info {
+            margin-top: 20px;
+        }
+        .total-cost {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Select Your Seat</h1>
+<div class="seat-map" id="seatMap"></div>
+<div class="info" id="info"></div>
+<div class="total-cost" id="totalCost">Total Cost: ₹0</div>
+
+<script>
+    const rows = 5;
+    const cols = 10;
+    const ticketPrice = 200; // Price per ticket
+    const seatMap = document.getElementById('seatMap');
+    const info = document.getElementById('info');
+    const totalCost = document.getElementById('totalCost');
+
+    // Create seats
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const seat = document.createElement('div');
+            seat.classList.add('seat');
+            seat.dataset.row = r;
+            seat.dataset.col = c;
+            seat.addEventListener('click', toggleSeat);
+            seatMap.appendChild(seat);
+        }
+    }
+
+    function toggleSeat() {
+        if (this.classList.contains('occupied')) {
+            return; // Can't select an occupied seat
+        }
+        this.classList.toggle('selected');
+        updateInfo();
+    }
+
+    function updateInfo() {
+        const selectedSeats = document.querySelectorAll('.seat.selected');
+        const seatNumbers = Array.from(selectedSeats).map(seat => {
+            const row = seat.dataset.row;
+            const col = seat.dataset.col;
+            return `Row ${parseInt(row) + 1}, Seat ${parseInt(col) + 1}`;
+        });
+        const total = selectedSeats.length * ticketPrice;
+        info.innerText = seatNumbers.length ? `Selected Seats: ${seatNumbers.join(', ')}` : 'No seats selected.';
+        totalCost.innerText = `Total Cost: ₹${total}`;
+    }
+
+    // Example: Mark some seats as occupied
+    const occupiedSeats = [[0, 2], [1, 5], [3, 7], [4, 0]];
+    occupiedSeats.forEach(([r, c]) => {
+        const seat = document.querySelector(`.seat[data-row="${r}"][data-col="${c}"]`);
+        if (seat) {
+            seat.classList.add('occupied');
+        }
+    });
+</script>
+
+</body>
+</html>

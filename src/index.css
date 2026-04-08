@@ -30,15 +30,19 @@ html, body, #root {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Ticket overlay: kill page-level scrollbar (classic Windows bar was often the document, not the div) */
+/* Full-screen flows (tickets, seats): kill page-level scrollbar */
 html:has(.ticket-fullscreen),
-body:has(.ticket-fullscreen) {
+body:has(.ticket-fullscreen),
+html:has(.seat-fullscreen),
+body:has(.seat-fullscreen) {
   overflow: hidden !important;
   scrollbar-width: none;
 }
 
 html:has(.ticket-fullscreen)::-webkit-scrollbar,
-body:has(.ticket-fullscreen)::-webkit-scrollbar {
+body:has(.ticket-fullscreen)::-webkit-scrollbar,
+html:has(.seat-fullscreen)::-webkit-scrollbar,
+body:has(.seat-fullscreen)::-webkit-scrollbar {
   display: none;
   width: 0;
   height: 0;

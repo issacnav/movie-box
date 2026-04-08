@@ -6,6 +6,7 @@ import ActionButtons from './components/ActionButtons'
 import BottomNav from './components/BottomNav'
 import BookingScreen from './components/BookingScreen'
 import TicketScreen from './components/TicketScreen'
+import SeatSelectorScreen from './components/SeatSelectorScreen'
 
 const POSTER_URL = '/poster.jpg'
 
@@ -46,6 +47,7 @@ function morphTiming() {
 function App() {
   const [screen, setScreen] = useState('home')
   const [ticketQty, setTicketQty] = useState(1)
+  const [seatSummary, setSeatSummary] = useState(null)
   const containerRef = useRef(null)
   const posterCardRef = useRef(null)
   const overlayRef = useRef(null)
@@ -80,6 +82,11 @@ function App() {
   const handleTicketsBack = useCallback(() => setScreen('booking'), [])
   const handleTicketsContinue = useCallback((count) => {
     setTicketQty(count)
+    setScreen('seats')
+  }, [])
+  const handleSeatsBack = useCallback(() => setScreen('tickets'), [])
+  const handleSeatsContinue = useCallback((payload) => {
+    setSeatSummary(payload?.summary ?? null)
     setScreen('confirmation')
   }, [])
 
@@ -172,6 +179,7 @@ function App() {
   const showBookingLayer = screen === 'morphing' || screen === 'booking'
   const bookingContentLive = screen === 'booking'
   const isTickets = screen === 'tickets'
+  const isSeats = screen === 'seats'
   const isConfirmation = screen === 'confirmation'
 
   /**
@@ -253,6 +261,24 @@ function App() {
         </div>
       )}
 
+      {isSeats && (
+        <div
+          className="seat-fullscreen ticket-fullscreen fixed inset-0 z-[60] flex h-[100dvh] max-h-[100dvh] w-full justify-center overflow-hidden overscroll-none bg-[#050506]"
+          style={{ paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
+        >
+          <div className="flex h-full min-h-0 w-full max-w-[430px] flex-col overflow-hidden">
+            <SeatSelectorScreen
+              posterUrl={POSTER_URL}
+              movie={MOVIE}
+              ticketQty={ticketQty}
+              onBack={handleSeatsBack}
+              onContinue={handleSeatsContinue}
+              active={isSeats}
+            />
+          </div>
+        </div>
+      )}
+
       {isConfirmation && (
         <div
           className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-4 px-8 text-center bg-[#0D0D0F] min-h-[100dvh]"
@@ -262,9 +288,15 @@ function App() {
           <p className="text-gray-text text-[15px] max-w-[280px]">
             {ticketQty} ticket{ticketQty === 1 ? '' : 's'} for {MOVIE.title}
           </p>
+          {seatSummary && (
+            <p className="text-gray-text text-[14px] max-w-[280px] -mt-1">{seatSummary}</p>
+          )}
           <button
             type="button"
-            onClick={() => setScreen('home')}
+            onClick={() => {
+              setSeatSummary(null)
+              setScreen('home')
+            }}
             className="mt-2 h-[48px] px-8 rounded-full bg-yellow text-dark text-[15px] font-semibold border-none cursor-pointer"
           >
             Back to movies

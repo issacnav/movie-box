@@ -173,16 +173,19 @@ export default function BookingScreen({
       </div>
 
       {/* 7. Continue */}
-      <StaggerChild index={4} active={active} className="px-6 pb-10 pt-2 shrink-0">
+      <StaggerChild index={4} active={active} className="px-6 pt-2 pb-[max(2rem,env(safe-area-inset-bottom))] shrink-0">
         <button
           type="button"
           disabled={!canContinue}
           onClick={canContinue ? onContinue : undefined}
-          className={`w-full h-[56px] rounded-full text-[16px] font-semibold border-none transition-colors duration-200 ease-out ${
+          className={`w-full h-[52px] rounded-full text-[15px] font-semibold tracking-[-0.01em] border-none transition-all duration-200 ease-out ${
             canContinue
-              ? 'bg-yellow text-dark cursor-pointer'
-              : 'bg-dark-surface text-white/30 cursor-not-allowed'
+              ? 'bg-yellow text-dark cursor-pointer active:scale-[0.98] active:brightness-95'
+              : 'bg-[#1C1C20] text-white/20 cursor-not-allowed'
           }`}
+          style={canContinue ? {
+            boxShadow: '0 4px 20px -4px rgba(245,197,24,0.3), 0 1px 3px rgba(245,197,24,0.12)',
+          } : undefined}
         >
           Continue
         </button>

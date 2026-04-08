@@ -104,8 +104,8 @@ function SingleKawaiiLottie({ size, animationData }) {
 
 /** Reference (Emmanuel Ikechukwu): ~30–40% overlap, characters tightly clustered. */
 const MASCOT_ROW_OVERLAP_RATIO = 0.38
-/** Reference: mascots ~150–180px on phone; cap keeps tablets from overscaling. */
-const MASCOT_ROW_MAX_PX = 180
+/** Reference: mascots ~200–240px on phone; cap keeps tablets from overscaling. */
+const MASCOT_ROW_MAX_PX = 240
 /** Hard floor so a ResizeObserver height of 0 never wipes sizing before first layout. */
 const MASCOT_MIN_BAND_HEIGHT = 56
 
@@ -314,13 +314,13 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
         movie row + Continue are outside this motion wrapper.
       */}
       <motion.div
-        className="hide-scrollbar mx-6 mt-8 flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto"
+        className="hide-scrollbar mx-6 mt-6 flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         initial={reduceMotion ? IOS_TICKET_MAIN_ENTER_REDUCED : IOS_TICKET_MAIN_ENTER_INITIAL}
         animate={IOS_TICKET_MAIN_ENTER_ANIMATE}
         transition={IOS_TICKET_MAIN_ENTER_TRANSITION}
       >
-        <div className="flex shrink-0 flex-col gap-8">
+        <div className="flex shrink-0 flex-col gap-6">
           <StaggerChild index={1} active={active} className="h-px w-full shrink-0 bg-white/10" />
 
           <StaggerChild index={2} active={active} className="shrink-0">
@@ -329,10 +329,10 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
           </StaggerChild>
         </div>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div
             ref={mascotBandRef}
-            className="flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-x-hidden overflow-y-hidden"
+            className="flex min-h-0 min-w-0 flex-[3] flex-col justify-center overflow-x-hidden overflow-y-hidden"
           >
             <StaggerChild
               index={3}
@@ -348,7 +348,7 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
           <StaggerChild
             index={4}
             active={active}
-            className="flex w-full shrink-0 justify-center px-1"
+            className="flex w-full shrink-0 justify-center px-1 pb-6"
           >
             <div
               className="flex w-full items-center justify-between gap-6"
@@ -388,12 +388,13 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
       <StaggerChild
         index={5}
         active={active}
-        className="shrink-0 px-6 pt-2 pb-[max(2.5rem,env(safe-area-inset-bottom))]"
+        className="shrink-0 px-6 pt-3 pb-[max(2rem,env(safe-area-inset-bottom))]"
       >
         <button
           type="button"
           onClick={() => onContinue?.(count)}
-          className="h-[56px] w-full cursor-pointer rounded-full border-none bg-yellow text-[16px] font-semibold text-dark transition-colors duration-200 ease-out hover:bg-yellow-button"
+          className="h-[52px] w-full cursor-pointer rounded-full border-none bg-yellow text-[15px] font-semibold tracking-[-0.01em] text-dark transition-all duration-200 ease-out active:scale-[0.98] active:brightness-95"
+          style={{ boxShadow: '0 4px 20px -4px rgba(245,197,24,0.3), 0 1px 3px rgba(245,197,24,0.12)' }}
         >
           Continue
         </button>
