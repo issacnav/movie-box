@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, useLayoutEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useLottie } from 'lottie-react'
 import { ArrowLeft, Minus, Plus } from 'lucide-react'
-import imdbLogo from '../assets/imdb-logo.svg'
+import MiniMovieCardRow from './MiniMovieCardRow.jsx'
 import kawaiiHiAnimation from '../assets/kawaii-emoji-hi.json'
 import kawaiiEmojiAnimation from '../assets/kawaii-animals-emoji-animation.json'
 import kawaiiGivingLoveAnimation from '../assets/kawaii-animals-giving-love.json'
@@ -291,8 +291,8 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
 
   return (
     <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
-      {/* 1. Back arrow */}
-      <StaggerChild index={0} active={active} className="ml-4 mt-2 shrink-0 self-start sm:mt-4">
+      {/* 1. Back arrow — mt/ml match BookingScreen close so the row below lines up */}
+      <StaggerChild index={0} active={active} className="ml-4 mt-4 shrink-0 self-start">
         <button
           onClick={onBack}
           className="p-1 cursor-pointer bg-transparent border-none"
@@ -302,32 +302,9 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
         </button>
       </StaggerChild>
 
-      {/* 2. Mini movie card (same layout as BookingScreen) */}
-      <StaggerChild
-        index={0}
-        active={active}
-        className="flex items-center gap-3 mx-6 mt-3 shrink-0 sm:gap-4 sm:mt-6"
-      >
-        <div className="w-[100px] h-[67px] rounded-[10px] overflow-hidden shrink-0 sm:w-[120px] sm:h-[80px] sm:rounded-[12px]">
-          <img
-            src={posterUrl}
-            alt={`${movie.title} poster`}
-            className="w-full h-full object-cover object-top"
-            draggable={false}
-          />
-        </div>
-        <div className="flex flex-col gap-0.5 min-w-0 flex-1 sm:gap-1">
-          <h3 className="text-white text-[16px] font-bold leading-snug sm:text-[18px] sm:leading-tight line-clamp-2">
-            {movie.title}
-          </h3>
-          <span className="text-gray-light text-[12px] sm:text-[13px]">
-            {movie.year} · {movie.genre} · {movie.duration}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <img src={imdbLogo} alt="IMDb" className="h-[16px] w-auto" />
-            <span className="text-white text-[12px] font-medium sm:text-[13px]">{movie.imdbRating}</span>
-          </div>
-        </div>
+      {/* 2. Mini movie card — shared with BookingScreen so size/position match screen 2 → 3 */}
+      <StaggerChild index={0} active={active} className="shrink-0">
+        <MiniMovieCardRow posterUrl={posterUrl} movie={movie} />
       </StaggerChild>
 
       {/*
@@ -337,22 +314,22 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
         movie row + Continue are outside this motion wrapper.
       */}
       <motion.div
-        className="hide-scrollbar mx-6 mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto sm:mt-8"
+        className="hide-scrollbar mx-6 mt-8 flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         initial={reduceMotion ? IOS_TICKET_MAIN_ENTER_REDUCED : IOS_TICKET_MAIN_ENTER_INITIAL}
         animate={IOS_TICKET_MAIN_ENTER_ANIMATE}
         transition={IOS_TICKET_MAIN_ENTER_TRANSITION}
       >
-        <div className="flex shrink-0 flex-col gap-3 sm:gap-6">
+        <div className="flex shrink-0 flex-col gap-8">
           <StaggerChild index={1} active={active} className="h-px w-full shrink-0 bg-white/10" />
 
           <StaggerChild index={2} active={active} className="shrink-0">
-            <h2 className="text-white text-[21px] font-bold sm:text-[24px]">Who's going?</h2>
-            <p className="text-gray-text mt-0.5 text-[13px] sm:mt-1 sm:text-[14px]">Select tickets amount</p>
+            <h2 className="text-white text-[24px] font-bold">Who's going?</h2>
+            <p className="text-gray-text mt-1 text-[14px]">Select tickets amount</p>
           </StaggerChild>
         </div>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 sm:gap-4">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
           <div
             ref={mascotBandRef}
             className="flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-x-hidden overflow-y-hidden"
@@ -381,12 +358,12 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
                 type="button"
                 onClick={decrement}
                 disabled={count <= 1}
-                className={`flex h-[52px] w-[52px] shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-dark-surface transition-opacity sm:h-[56px] sm:w-[56px] ${
+                className={`flex h-[56px] w-[56px] shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-dark-surface transition-opacity ${
                   count <= 1 ? 'cursor-not-allowed opacity-40' : 'opacity-100'
                 }`}
                 aria-label="Decrease tickets"
               >
-                <Minus className="text-white w-5 h-5 sm:w-[22px] sm:h-[22px]" strokeWidth={2} />
+                <Minus size={22} className="text-white" strokeWidth={2} />
               </button>
 
               <TicketQuantityDigit value={count} directionRef={stepDirectionRef} />
@@ -395,28 +372,28 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
                 type="button"
                 onClick={increment}
                 disabled={count >= 10}
-                className={`flex h-[52px] w-[52px] shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-dark-surface transition-opacity sm:h-[56px] sm:w-[56px] ${
+                className={`flex h-[56px] w-[56px] shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-dark-surface transition-opacity ${
                   count >= 10 ? 'cursor-not-allowed opacity-40' : 'opacity-100'
                 }`}
                 aria-label="Increase tickets"
               >
-                <Plus className="text-white w-5 h-5 sm:w-[22px] sm:h-[22px]" strokeWidth={2} />
+                <Plus size={22} className="text-white" strokeWidth={2} />
               </button>
             </div>
           </StaggerChild>
         </div>
       </motion.div>
 
-      {/* Continue — spaced from counter; safe-area on notched phones */}
+      {/* Continue — same chrome as BookingScreen; pb uses safe-area when larger than pb-10 */}
       <StaggerChild
         index={5}
         active={active}
-        className="mt-3 shrink-0 px-6 pt-1 pb-[max(12px,env(safe-area-inset-bottom))] sm:mt-4 sm:pb-10"
+        className="shrink-0 px-6 pt-2 pb-[max(2.5rem,env(safe-area-inset-bottom))]"
       >
         <button
           type="button"
           onClick={() => onContinue?.(count)}
-          className="h-[52px] w-full cursor-pointer rounded-full border-none bg-yellow text-[15px] font-semibold text-dark transition-colors duration-200 ease-out hover:bg-yellow-button sm:h-[56px] sm:text-[16px]"
+          className="h-[56px] w-full cursor-pointer rounded-full border-none bg-yellow text-[16px] font-semibold text-dark transition-colors duration-200 ease-out hover:bg-yellow-button"
         >
           Continue
         </button>

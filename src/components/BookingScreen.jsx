@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { X, ChevronDown } from 'lucide-react'
-import imdbLogo from '../assets/imdb-logo.svg'
 import ShowtimeGrid from './ShowtimeGrid'
+import MiniMovieCardRow from './MiniMovieCardRow.jsx'
 
 const DAYS = [
   { date: 11, day: 'T' },
@@ -79,31 +79,12 @@ export default function BookingScreen({
       </StaggerChild>
 
       {/* 2. Mini movie card — static copy hidden until morph ends (overlay shows poster meanwhile) */}
-      <div className="flex items-center gap-4 mx-6 mt-6">
-        <div ref={miniCardRef} className="w-[120px] h-[80px] rounded-[12px] overflow-hidden shrink-0">
-          <img
-            src={posterUrl}
-            alt={`${movie.title} poster`}
-            className={`w-full h-full object-cover object-top ${hideUntilMorph ? 'opacity-0' : 'opacity-100'}`}
-            draggable={false}
-          />
-        </div>
-        <div
-          className={`flex flex-col gap-1 min-w-0 flex-1 ${hideUntilMorph ? 'opacity-0' : 'opacity-100'}`}
-          aria-hidden={hideUntilMorph}
-        >
-          <h3 className="text-white text-[18px] font-bold leading-tight">
-            {movie.title}
-          </h3>
-          <span className="text-gray-light text-[13px]">
-            {movie.year} · {movie.genre} · {movie.duration}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <img src={imdbLogo} alt="IMDb" className="h-[16px] w-auto" />
-            <span className="text-white text-[13px] font-medium">{movie.imdbRating}</span>
-          </div>
-        </div>
-      </div>
+      <MiniMovieCardRow
+        posterUrl={posterUrl}
+        movie={movie}
+        miniCardRef={miniCardRef}
+        hidePosterAndText={hideUntilMorph}
+      />
 
       {/* 3. Divider */}
       <StaggerChild index={1} active={active} className="mx-6 mt-8 h-px bg-white/10" />
