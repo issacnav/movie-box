@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --color-dark: #0D0D0F;
+  --color-dark-card: #1A1A1E;
+  --color-dark-surface: #242428;
+  --color-yellow: #F5C518;
+  --color-yellow-button: #E8B00F;
+  --color-gray-text: #8E8E93;
+  --color-gray-light: #AEAEB2;
+  --color-white: #FFFFFF;
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+}
+
+
+html, body, #root {
+  height: 100%;
+  background-color: var(--color-dark);
+  color: var(--color-white);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ticket overlay: kill page-level scrollbar (classic Windows bar was often the document, not the div) */
+html:has(.ticket-fullscreen),
+body:has(.ticket-fullscreen) {
+  overflow: hidden !important;
+  scrollbar-width: none;
+}
+
+html:has(.ticket-fullscreen)::-webkit-scrollbar,
+body:has(.ticket-fullscreen)::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Ticket screen: mascot row */
+@keyframes ticket-mascot-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ticket-mascot-reveal {
+  animation: ticket-mascot-reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 2nd, 4th… — warm coral / peach shift vs default */
+.ticket-mascot-tint-warm {
+  filter: hue-rotate(168deg) saturate(1.4) brightness(1.06);
+}
+
+.ticket-mascot-tint-base {
+  filter: none;
+}
+
+.ticket-mascot-slot-size {
+  transition:
+    width 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    margin-left 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Ticket middle: scroll without showing a track (Win/Mac/WebKit/Firefox) */
+.hide-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+  scrollbar-color: transparent transparent;
+  scrollbar-gutter: auto;
+}
+
+.hide-scrollbar::-webkit-scrollbar,
+.hide-scrollbar::-webkit-scrollbar-corner,
+.hide-scrollbar::-webkit-scrollbar-thumb,
+.hide-scrollbar::-webkit-scrollbar-track {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+  appearance: none !important;
+}
+
+/* Booking time panel + mascots: respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .ticket-mascot-reveal {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .ticket-mascot-slot-size {
+    transition: none !important;
+  }
+
+  .booking-time-panel-grid,
+  .booking-time-panel-inner {
+    transition: none !important;
+  }
+}
