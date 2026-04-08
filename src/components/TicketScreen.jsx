@@ -55,7 +55,7 @@ function SingleKawaiiLottie({ size, animationData }) {
       animationData
         ? {
             animationData,
-            loop: true,
+            loop: false,
             renderer: 'svg',
             rendererSettings: {
               preserveAspectRatio: 'xMidYMid meet',
@@ -106,20 +106,23 @@ function SingleKawaiiLottie({ size, animationData }) {
 const MASCOT_ROW_OVERLAP_RATIO = 0.38
 /** Reference: mascots ~150–180px on phone; cap keeps tablets from overscaling. */
 const MASCOT_ROW_MAX_PX = 180
-
-/** Same vertical gap for mascot→counter and counter→Continue (reference). */
-const TICKET_STACK_GAP_PX = 16
+/** Hard floor so a ResizeObserver height of 0 never wipes sizing before first layout. */
+const MASCOT_MIN_BAND_HEIGHT = 56
 
 /** Counter cluster slightly narrower than Continue (reference). */
 const TICKET_COUNTER_MAX_PX = 260
 
 /** Conservative per-slot size before ResizeObserver runs (avoids row wider than ~260px content). */
-function estimateInitialMascotPer(safeCount) {
+function estimateInitialMascotPer(safeCount, bandMaxHeightPx = 0) {
   const c = safeCount
   const r = MASCOT_ROW_OVERLAP_RATIO
   const denom = c - (c - 1) * r
   if (denom <= 0) return 56
-  return Math.min(MASCOT_ROW_MAX_PX, Math.max(56, Math.floor(260 / denom)))
+  let per = Math.min(MASCOT_ROW_MAX_PX, Math.max(56, Math.floor(260 / denom)))
+  if (bandMaxHeightPx >= MASCOT_MIN_BAND_HEIGHT) {
+    per = Math.min(per, bandMaxHeightPx)
+  }
+  return per
 }
 
 /** Wraps one Lottie: entrance motion + alternating tint + smooth resize when count changes */
@@ -150,7 +153,7 @@ function mascotVariantForTicketCount(safeCount, slotIndex, randomPicks) {
 }
 
 /** N tickets → N equal Lotties in one row, sized to fit the row (like your reference). */
-function KawaiiMascotRow({ count }) {
+function KawaiiMascotRow({ count, bandMaxHeightPx = 0 }) {
   const prepared = useMemo(
     () =>
       [
@@ -163,9 +166,9 @@ function KawaiiMascotRow({ count }) {
 
   const containerRef = useRef(null)
   const safeCount = Math.max(1, Math.min(10, count))
-  const [size, setSize] = useState(() => estimateInitialMascotPer(safeCount))
+  const [size, setSize] = useState(() => estimateInitialMascotPer(safeCount, bandMaxHeightPx))
   const [overlapPx, setOverlapPx] = useState(() => {
-    const per = estimateInitialMascotPer(safeCount)
+    const per = estimateInitialMascotPer(safeCount, bandMaxHeightPx)
     return Math.min(
       Math.round(per * MASCOT_ROW_OVERLAP_RATIO),
       Math.max(0, per - 20),
@@ -199,6 +202,9 @@ function KawaiiMascotRow({ count }) {
       const denom = c - (c - 1) * r
       let per = denom > 0 ? Math.floor(w / denom) : Math.floor(w)
       per = Math.min(MASCOT_ROW_MAX_PX, Math.max(56, per))
+      if (bandMaxHeightPx >= MASCOT_MIN_BAND_HEIGHT) {
+        per = Math.min(per, bandMaxHeightPx)
+      }
       let overlap = Math.min(Math.round(per * r), Math.max(0, per - 20))
       let rowSpan = c * per - (c - 1) * overlap
       while (rowSpan > w && per > 56) {
@@ -214,7 +220,7 @@ function KawaiiMascotRow({ count }) {
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [safeCount])
+  }, [safeCount, bandMaxHeightPx])
 
   return (
     <div
@@ -242,6 +248,19 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
   const [count, setCount] = useState(1)
   const stepDirectionRef = useRef(0)
   const reduceMotion = useReducedMotion()
+  const mascotBandRef = useRef(null)
+  const [mascotBandHeightPx, setMascotBandHeightPx] = useState(0)
+
+  useLayoutEffect(() => {
+    const el = mascotBandRef.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      const h = entries[0]?.contentRect.height ?? 0
+      setMascotBandHeightPx(Math.floor(h))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   const decrement = () => {
     stepDirectionRef.current = -1
@@ -273,7 +292,7 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
   return (
     <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
       {/* 1. Back arrow */}
-      <StaggerChild index={0} active={active} className="ml-4 mt-4 shrink-0 self-start">
+      <StaggerChild index={0} active={active} className="ml-4 mt-2 shrink-0 self-start sm:mt-4">
         <button
           onClick={onBack}
           className="p-1 cursor-pointer bg-transparent border-none"
@@ -284,8 +303,12 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
       </StaggerChild>
 
       {/* 2. Mini movie card (same layout as BookingScreen) */}
-      <StaggerChild index={0} active={active} className="flex items-center gap-4 mx-6 mt-6 shrink-0">
-        <div className="w-[120px] h-[80px] rounded-[12px] overflow-hidden shrink-0">
+      <StaggerChild
+        index={0}
+        active={active}
+        className="flex items-center gap-3 mx-6 mt-3 shrink-0 sm:gap-4 sm:mt-6"
+      >
+        <div className="w-[100px] h-[67px] rounded-[10px] overflow-hidden shrink-0 sm:w-[120px] sm:h-[80px] sm:rounded-[12px]">
           <img
             src={posterUrl}
             alt={`${movie.title} poster`}
@@ -293,16 +316,16 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
             draggable={false}
           />
         </div>
-        <div className="flex flex-col gap-1 min-w-0 flex-1">
-          <h3 className="text-white text-[18px] font-bold leading-tight">
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1 sm:gap-1">
+          <h3 className="text-white text-[16px] font-bold leading-snug sm:text-[18px] sm:leading-tight line-clamp-2">
             {movie.title}
           </h3>
-          <span className="text-gray-light text-[13px]">
+          <span className="text-gray-light text-[12px] sm:text-[13px]">
             {movie.year} · {movie.genre} · {movie.duration}
           </span>
           <div className="flex items-center gap-1.5">
             <img src={imdbLogo} alt="IMDb" className="h-[16px] w-auto" />
-            <span className="text-white text-[13px] font-medium">{movie.imdbRating}</span>
+            <span className="text-white text-[12px] font-medium sm:text-[13px]">{movie.imdbRating}</span>
           </div>
         </div>
       </StaggerChild>
@@ -314,33 +337,33 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
         movie row + Continue are outside this motion wrapper.
       */}
       <motion.div
-        className="hide-scrollbar mx-6 mt-8 flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto"
+        className="hide-scrollbar mx-6 mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto sm:mt-8"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         initial={reduceMotion ? IOS_TICKET_MAIN_ENTER_REDUCED : IOS_TICKET_MAIN_ENTER_INITIAL}
         animate={IOS_TICKET_MAIN_ENTER_ANIMATE}
         transition={IOS_TICKET_MAIN_ENTER_TRANSITION}
       >
-        <div className="flex shrink-0 flex-col gap-6">
+        <div className="flex shrink-0 flex-col gap-3 sm:gap-6">
           <StaggerChild index={1} active={active} className="h-px w-full shrink-0 bg-white/10" />
 
           <StaggerChild index={2} active={active} className="shrink-0">
-            <h2 className="text-white text-[24px] font-bold">Who's going?</h2>
-            <p className="text-gray-text mt-1 text-[14px]">Select tickets amount</p>
+            <h2 className="text-white text-[21px] font-bold sm:text-[24px]">Who's going?</h2>
+            <p className="text-gray-text mt-0.5 text-[13px] sm:mt-1 sm:text-[14px]">Select tickets amount</p>
           </StaggerChild>
         </div>
 
-        <div
-          className="flex min-h-0 min-w-0 flex-1 flex-col"
-          style={{ gap: TICKET_STACK_GAP_PX }}
-        >
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-x-hidden">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 sm:gap-4">
+          <div
+            ref={mascotBandRef}
+            className="flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-x-hidden overflow-y-hidden"
+          >
             <StaggerChild
               index={3}
               active={active}
-              className="flex w-full min-w-0 max-w-full shrink-0 justify-center overflow-x-hidden px-1"
+              className="flex w-full min-w-0 max-w-full min-h-0 shrink-0 justify-center overflow-x-hidden px-1"
             >
-              <div className="w-full min-w-0 max-w-full overflow-x-hidden">
-                <KawaiiMascotRow count={count} />
+              <div className="w-full min-w-0 max-w-full min-h-0 overflow-x-hidden">
+                <KawaiiMascotRow count={count} bandMaxHeightPx={mascotBandHeightPx} />
               </div>
             </StaggerChild>
           </div>
@@ -358,12 +381,12 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
                 type="button"
                 onClick={decrement}
                 disabled={count <= 1}
-                className={`flex h-[56px] w-[56px] shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-dark-surface transition-opacity ${
+                className={`flex h-[52px] w-[52px] shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-dark-surface transition-opacity sm:h-[56px] sm:w-[56px] ${
                   count <= 1 ? 'cursor-not-allowed opacity-40' : 'opacity-100'
                 }`}
                 aria-label="Decrease tickets"
               >
-                <Minus size={22} className="text-white" />
+                <Minus className="text-white w-5 h-5 sm:w-[22px] sm:h-[22px]" strokeWidth={2} />
               </button>
 
               <TicketQuantityDigit value={count} directionRef={stepDirectionRef} />
@@ -372,29 +395,28 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
                 type="button"
                 onClick={increment}
                 disabled={count >= 10}
-                className={`flex h-[56px] w-[56px] shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-dark-surface transition-opacity ${
+                className={`flex h-[52px] w-[52px] shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-dark-surface transition-opacity sm:h-[56px] sm:w-[56px] ${
                   count >= 10 ? 'cursor-not-allowed opacity-40' : 'opacity-100'
                 }`}
                 aria-label="Increase tickets"
               >
-                <Plus size={22} className="text-white" />
+                <Plus className="text-white w-5 h-5 sm:w-[22px] sm:h-[22px]" strokeWidth={2} />
               </button>
             </div>
           </StaggerChild>
         </div>
       </motion.div>
 
-      {/* Continue — margin matches TICKET_STACK_GAP_PX (reference: equal vertical rhythm). */}
+      {/* Continue — spaced from counter; safe-area on notched phones */}
       <StaggerChild
         index={5}
         active={active}
-        className="shrink-0 px-6 pb-10 pt-1"
-        style={{ marginTop: TICKET_STACK_GAP_PX }}
+        className="mt-3 shrink-0 px-6 pt-1 pb-[max(12px,env(safe-area-inset-bottom))] sm:mt-4 sm:pb-10"
       >
         <button
           type="button"
           onClick={() => onContinue?.(count)}
-          className="h-[56px] w-full cursor-pointer rounded-full border-none bg-yellow text-[16px] font-semibold text-dark transition-colors duration-200 ease-out hover:bg-yellow-button"
+          className="h-[52px] w-full cursor-pointer rounded-full border-none bg-yellow text-[15px] font-semibold text-dark transition-colors duration-200 ease-out hover:bg-yellow-button sm:h-[56px] sm:text-[16px]"
         >
           Continue
         </button>
