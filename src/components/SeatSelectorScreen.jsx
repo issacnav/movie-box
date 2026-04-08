@@ -29,9 +29,12 @@ const UNAVAILABLE_IDS = new Set([
   '8-R3',
 ])
 
+const THEATER_FRAME_MAX_WIDTH = 320
+const THEATER_SCREEN_RATIO = '2.75 / 1'
+
 function SeatSelectorHeader({ onBack }) {
   return (
-    <header className="shrink-0 px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-1">
+    <header className="shrink-0 px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
       <button
         type="button"
         onClick={onBack}
@@ -46,32 +49,18 @@ function SeatSelectorHeader({ onBack }) {
   )
 }
 
-function CinemaScreenPreview({ posterUrl, title }) {
+function CinemaScreenPreview({ posterUrl, previewVideoUrl, title }) {
   return (
-    <div className="relative mx-auto w-full max-w-[300px] px-2">
-      {/* Ambient glow beneath screen */}
-      <div
-        className="pointer-events-none absolute -bottom-3 left-1/2 z-0 h-12 w-[80%] -translate-x-1/2 rounded-[50%] blur-2xl"
-        style={{
-          background:
-            'radial-gradient(ellipse 90% 80% at 50% 30%, rgba(245, 197, 24, 0.28) 0%, rgba(245, 197, 24, 0.08) 50%, transparent 75%)',
-        }}
-        aria-hidden
-      />
-      {/* Subtle side spill light */}
-      <div
-        className="pointer-events-none absolute -bottom-5 left-1/2 z-0 h-20 w-[60%] -translate-x-1/2 blur-3xl opacity-30"
-        style={{
-          background: 'radial-gradient(ellipse at 50% 0%, rgba(245, 197, 24, 0.15), transparent 70%)',
-        }}
-        aria-hidden
-      />
+    <div
+      className="relative mx-auto w-full px-5"
+      style={{ maxWidth: `${THEATER_FRAME_MAX_WIDTH}px` }}
+    >
       <div
         className="relative z-[1] overflow-hidden"
         style={{
           borderRadius: '50% / 16%',
-          aspectRatio: '2.6 / 1',
-          transform: 'perspective(500px) rotateX(5deg)',
+          aspectRatio: THEATER_SCREEN_RATIO,
+          transform: 'perspective(560px) rotateX(6deg)',
           transformOrigin: '50% 0%',
           boxShadow: '0 8px 40px -8px rgba(0,0,0,0.9), 0 2px 12px -2px rgba(245,197,24,0.08)',
         }}
@@ -79,9 +68,23 @@ function CinemaScreenPreview({ posterUrl, title }) {
         <img
           src={posterUrl}
           alt=""
-          className="h-full w-full scale-110 object-cover object-[50%_30%] opacity-85"
-          style={{ filter: 'blur(2px) saturate(1.05) brightness(0.7)' }}
+          className="absolute inset-0 h-full w-full scale-110 object-cover object-[50%_30%] opacity-35"
+          style={{ filter: 'blur(4px) saturate(1.05) brightness(0.52)' }}
         />
+        {previewVideoUrl && (
+          <video
+            src={previewVideoUrl}
+            poster={posterUrl}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            className="h-full w-full scale-[1.08] object-cover object-center"
+            style={{ filter: 'saturate(1.02) brightness(0.82)' }}
+            aria-hidden="true"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/60" />
         {/* Thin bright edge at the bottom to simulate screen edge lighting */}
         <div
@@ -173,42 +176,11 @@ function SeatGrid({ layout, seatStates, onToggle }) {
   )
 }
 
-function SeatSelectionOverlay({ visible, rowLabel, seatCount, ticketQty }) {
-  if (!visible) return null
-  const n = Math.min(ticketQty, 4)
-  return (
-    <div
-      className="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2"
-      style={{ top: '-2.5rem' }}
-    >
-      <div
-        className="flex items-center gap-2 rounded-full border border-white/[0.07] bg-[#1A1A1E]/95 py-1.5 pl-2 pr-3 backdrop-blur-xl"
-        style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 1px 0 inset rgba(255,255,255,0.04)' }}
-        role="status"
-      >
-        <div className="flex -space-x-1.5 pl-0.5">
-          {Array.from({ length: n }, (_, i) => (
-            <div
-              key={i}
-              className="h-6 w-6 shrink-0 rounded-full border-[1.5px] border-[#1A1A1E] bg-gradient-to-br from-amber-300/90 to-amber-600/80"
-              style={{ zIndex: n - i }}
-              aria-hidden
-            />
-          ))}
-        </div>
-        <p className="text-[12px] font-medium tracking-tight text-white/90">
-          Row {rowLabel} · {seatCount} {seatCount === 1 ? 'Seat' : 'Seats'}
-        </p>
-      </div>
-    </div>
-  )
-}
-
 function SeatsTogetherChip({ count }) {
   return (
     <button
       type="button"
-      className="mx-auto flex cursor-pointer items-center gap-1.5 rounded-full border border-white/[0.07] bg-[#1C1C20] px-4 py-2.5 text-[13px] font-medium tracking-wide text-white/90 transition-colors active:bg-[#28282C]"
+      className="mx-auto flex min-w-[190px] cursor-pointer items-center justify-center gap-1.5 rounded-full border border-white/[0.07] bg-[#1C1C20] px-4 py-2.5 text-center text-[13px] font-medium tracking-wide text-white/90 transition-colors active:bg-[#28282C]"
       style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 3px rgba(0,0,0,0.3)' }}
     >
       {count} {count === 1 ? 'Seat' : 'Seats'} Together
@@ -227,7 +199,7 @@ function SeatHelperText() {
 
 function BottomCTA({ disabled, onContinue }) {
   return (
-    <div className="shrink-0 px-6 pt-2 pb-[max(2rem,env(safe-area-inset-bottom))]">
+    <div className="shrink-0 px-6 pt-1 pb-[max(2rem,env(safe-area-inset-bottom))]">
       <button
         type="button"
         disabled={disabled}
@@ -247,31 +219,17 @@ function BottomCTA({ disabled, onContinue }) {
   )
 }
 
-function SeatMapSection({
-  layout,
-  seatStates,
-  onToggle,
-  overlayVisible,
-  overlayRow,
-  selectedCount,
-  ticketQty,
-}) {
+function SeatMapSection({ layout, seatStates, onToggle }) {
   return (
-    <div className="relative mx-auto mt-3 w-full min-w-0 shrink-0 px-2 pb-1">
+    <div className="relative mx-auto w-full min-w-0 shrink-0 px-2">
       <div
-        className="relative mx-auto flex max-w-[min(100%,340px)] flex-col items-center"
-        style={{ perspective: '500px' }}
+        className="relative mx-auto flex w-full flex-col items-center"
+        style={{ maxWidth: `${THEATER_FRAME_MAX_WIDTH}px`, perspective: '500px' }}
       >
-        <SeatSelectionOverlay
-          visible={overlayVisible}
-          rowLabel={overlayRow}
-          seatCount={selectedCount}
-          ticketQty={ticketQty}
-        />
         <div
-          className="w-full px-1 pt-0"
+          className="w-full px-3 pt-1"
           style={{
-            transform: 'perspective(550px) rotateX(8deg)',
+            transform: 'perspective(550px) rotateX(8deg) scale(0.96)',
             transformOrigin: '50% 0%',
           }}
         >
@@ -296,6 +254,7 @@ function buildSeatModel(layout) {
 
 export default function SeatSelectorScreen({
   posterUrl,
+  previewVideoUrl,
   movie,
   ticketQty,
   onBack,
@@ -382,23 +341,18 @@ export default function SeatSelectorScreen({
     <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-[#050506]">
       <SeatSelectorHeader onBack={onBack} />
 
-      <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto hide-scrollbar">
-        <div className="shrink-0 pt-1">
-          <CinemaScreenPreview posterUrl={posterUrl} title={movie?.title} />
-        </div>
-        <SeatMapSection
-          layout={layout}
-          seatStates={seatStates}
-          onToggle={toggle}
-          overlayVisible={selectedCount > 0}
-          overlayRow={overlayRow ?? '—'}
-          selectedCount={selectedCount}
-          ticketQty={ticketQty}
-        />
+      <div className="relative flex min-h-0 flex-1 overflow-y-auto hide-scrollbar">
+        <div className="flex min-h-full w-full flex-col justify-center gap-4 py-4">
+          <div className="shrink-0">
+            <CinemaScreenPreview posterUrl={posterUrl} previewVideoUrl={previewVideoUrl} title={movie?.title} />
+          </div>
 
-        <div className="flex shrink-0 flex-col items-center px-6 pb-2 pt-4">
-          <SeatsTogetherChip count={ticketQty} />
-          <SeatHelperText />
+          <SeatMapSection layout={layout} seatStates={seatStates} onToggle={toggle} />
+
+          <div className="flex shrink-0 flex-col items-center px-6 pt-1">
+            <SeatsTogetherChip count={ticketQty} />
+            <SeatHelperText />
+          </div>
         </div>
       </div>
 

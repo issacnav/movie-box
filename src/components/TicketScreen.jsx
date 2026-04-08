@@ -15,13 +15,19 @@ import {
   IOS_TICKET_MAIN_ENTER_TRANSITION,
 } from '../motion/iosScreenMotion.js'
 
-/** Ground disc layer name shared by these mascot exports */
 const MASCOT_LOTTIE_PREPARE = { omitLayers: ['Layer 1'] }
-
 const EMPTY_LOTTIE = { v: '5.5.7', fr: 1, ip: 0, op: 1, w: 100, h: 100, layers: [] }
+const TICKET_COUNTER_MAX_PX = 286
+const TICKET_MASCOT_ROW_MAX_PX = 196
+const TICKET_MASCOT_ROW_MIN_PX = 54
+const TICKET_MASCOT_ROW_OVERLAP_RATIO = 0.34
+const PREPARED_TICKET_MASCOTS = [
+  prepareLottieData(kawaiiHiAnimation, MASCOT_LOTTIE_PREPARE),
+  prepareLottieData(kawaiiEmojiAnimation, MASCOT_LOTTIE_PREPARE),
+  prepareLottieData(kawaiiGivingLoveAnimation, MASCOT_LOTTIE_PREPARE),
+]
 
 function StaggerChild({ index, active, children, className = '', style: styleProp }) {
-  // Start visible when active so first paint isn’t opacity:0 (blank) before useEffect runs
   const [visible, setVisible] = useState(() => Boolean(active))
 
   useEffect(() => {
@@ -48,7 +54,6 @@ function StaggerChild({ index, active, children, className = '', style: stylePro
   )
 }
 
-/** One instance per hook call — do not call useLottie inside a .map() in the parent. */
 function SingleKawaiiLottie({ size, animationData }) {
   const lottieOptions = useMemo(
     () =>
@@ -82,18 +87,18 @@ function SingleKawaiiLottie({ size, animationData }) {
   if (!animationData) {
     return (
       <div
-        className="shrink-0 flex items-center justify-center rounded-full bg-dark-surface text-[length:clamp(1.5rem,12vw,2.5rem)] leading-none pointer-events-none"
+        className="flex shrink-0 items-center justify-center rounded-full bg-dark-surface text-[2rem] leading-none pointer-events-none"
         style={{ width: size, height: size }}
         aria-hidden
       >
-        👋
+        *
       </div>
     )
   }
 
   return (
     <div
-      className="shrink-0 flex items-end justify-center pointer-events-none w-full h-full min-h-0"
+      className="flex h-full w-full shrink-0 items-center justify-center pointer-events-none"
       style={{ width: size, height: size }}
       aria-hidden
     >
@@ -102,144 +107,70 @@ function SingleKawaiiLottie({ size, animationData }) {
   )
 }
 
-/** Reference (Emmanuel Ikechukwu): ~30–40% overlap, characters tightly clustered. */
-const MASCOT_ROW_OVERLAP_RATIO = 0.38
-/** Reference: mascots ~200–240px on phone; cap keeps tablets from overscaling. */
-const MASCOT_ROW_MAX_PX = 240
-/** Hard floor so a ResizeObserver height of 0 never wipes sizing before first layout. */
-const MASCOT_MIN_BAND_HEIGHT = 56
-
-/** Counter cluster slightly narrower than Continue (reference). */
-const TICKET_COUNTER_MAX_PX = 260
-
-/** Conservative per-slot size before ResizeObserver runs (avoids row wider than ~260px content). */
-function estimateInitialMascotPer(safeCount, bandMaxHeightPx = 0) {
-  const c = safeCount
-  const r = MASCOT_ROW_OVERLAP_RATIO
-  const denom = c - (c - 1) * r
-  if (denom <= 0) return 56
-  let per = Math.min(MASCOT_ROW_MAX_PX, Math.max(56, Math.floor(260 / denom)))
-  if (bandMaxHeightPx >= MASCOT_MIN_BAND_HEIGHT) {
-    per = Math.min(per, bandMaxHeightPx)
-  }
-  return per
+function mascotVariantForSlot(count, index) {
+  if (count <= 1) return 0
+  if (count === 2) return 1
+  if (count === 3) return 2
+  return index % PREPARED_TICKET_MASCOTS.length
 }
 
-/** Wraps one Lottie: entrance motion + alternating tint + smooth resize when count changes */
-function MascotSlot({ size, overlapPx, animationData, index }) {
-  const tint = index % 2 === 1 ? 'ticket-mascot-tint-warm' : 'ticket-mascot-tint-base'
-  return (
-    <div
-      className={`ticket-mascot-reveal ticket-mascot-slot-size flex shrink-0 items-end justify-center pointer-events-none overflow-visible ${tint}`}
-      style={{
-        width: size,
-        height: size,
-        marginLeft: index > 0 ? -overlapPx : 0,
-        zIndex: index,
-      }}
-      aria-hidden
-    >
-      <SingleKawaiiLottie size={size} animationData={animationData} />
-    </div>
-  )
+function estimateMascotRowSize(count, width) {
+  const safeCount = Math.max(1, count)
+  const denom = safeCount - (safeCount - 1) * TICKET_MASCOT_ROW_OVERLAP_RATIO
+  if (denom <= 0) return TICKET_MASCOT_ROW_MIN_PX
+  const raw = Math.floor(width / denom)
+  return Math.min(TICKET_MASCOT_ROW_MAX_PX, Math.max(TICKET_MASCOT_ROW_MIN_PX, raw))
 }
 
-/** 0 = wave hi, 1 = emoji burst, 2 = giving love; 4+ tickets → random mix per slot */
-function mascotVariantForTicketCount(safeCount, slotIndex, randomPicks) {
-  if (safeCount <= 1) return 0
-  if (safeCount === 2) return 1
-  if (safeCount === 3) return 2
-  return randomPicks[slotIndex] ?? 0
-}
-
-/** N tickets → N equal Lotties in one row, sized to fit the row (like your reference). */
-function KawaiiMascotRow({ count, bandMaxHeightPx = 0 }) {
-  const prepared = useMemo(
-    () =>
-      [
-        prepareLottieData(kawaiiHiAnimation, MASCOT_LOTTIE_PREPARE),
-        prepareLottieData(kawaiiEmojiAnimation, MASCOT_LOTTIE_PREPARE),
-        prepareLottieData(kawaiiGivingLoveAnimation, MASCOT_LOTTIE_PREPARE),
-      ],
-    [],
-  )
-
-  const containerRef = useRef(null)
+function TicketMascot({ count }) {
   const safeCount = Math.max(1, Math.min(10, count))
-  const [size, setSize] = useState(() => estimateInitialMascotPer(safeCount, bandMaxHeightPx))
-  const [overlapPx, setOverlapPx] = useState(() => {
-    const per = estimateInitialMascotPer(safeCount, bandMaxHeightPx)
-    return Math.min(
-      Math.round(per * MASCOT_ROW_OVERLAP_RATIO),
-      Math.max(0, per - 20),
-    )
-  })
-  const [randomPicks, setRandomPicks] = useState(() => [])
+  const containerRef = useRef(null)
+  const [mascotSize, setMascotSize] = useState(() => estimateMascotRowSize(safeCount, 280))
 
   useLayoutEffect(() => {
-    if (safeCount < 4) {
-      setRandomPicks([])
-      return
-    }
-    setRandomPicks((prev) => {
-      const next = prev.slice(0, safeCount)
-      while (next.length < safeCount) {
-        next.push(Math.floor(Math.random() * 3))
-      }
-      return next
-    })
-  }, [safeCount])
-
-  useLayoutEffect(() => {
-    const el = containerRef.current
-    if (!el) return
+    const element = containerRef.current
+    if (!element) return
 
     const measure = () => {
-      const w = el.getBoundingClientRect().width
-      if (w <= 0) return
-      const c = safeCount
-      const r = MASCOT_ROW_OVERLAP_RATIO
-      const denom = c - (c - 1) * r
-      let per = denom > 0 ? Math.floor(w / denom) : Math.floor(w)
-      per = Math.min(MASCOT_ROW_MAX_PX, Math.max(56, per))
-      if (bandMaxHeightPx >= MASCOT_MIN_BAND_HEIGHT) {
-        per = Math.min(per, bandMaxHeightPx)
-      }
-      let overlap = Math.min(Math.round(per * r), Math.max(0, per - 20))
-      let rowSpan = c * per - (c - 1) * overlap
-      while (rowSpan > w && per > 56) {
-        per -= 1
-        overlap = Math.min(Math.round(per * r), Math.max(0, per - 20))
-        rowSpan = c * per - (c - 1) * overlap
-      }
-      setSize(per)
-      setOverlapPx(overlap)
+      const width = element.getBoundingClientRect().width
+      if (width <= 0) return
+      setMascotSize(estimateMascotRowSize(safeCount, width))
     }
 
     measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [safeCount, bandMaxHeightPx])
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [safeCount])
+
+  const overlapPx = Math.min(
+    Math.round(mascotSize * TICKET_MASCOT_ROW_OVERLAP_RATIO),
+    Math.max(0, mascotSize - 20),
+  )
 
   return (
     <div
       ref={containerRef}
-      className="mx-auto flex w-full min-w-0 max-w-full flex-row flex-nowrap items-end justify-center gap-0 overflow-x-hidden"
+      className="mx-auto flex h-[220px] w-full items-center justify-center overflow-hidden"
     >
-      {Array.from({ length: safeCount }, (_, i) => {
-        const v = mascotVariantForTicketCount(safeCount, i, randomPicks)
-        const animationData = prepared[v]
-        return (
-          <MascotSlot
-            key={i}
-            size={size}
-            overlapPx={overlapPx}
-            animationData={animationData}
-            index={i}
-          />
-        )
-      })}
+      <div className="flex items-end justify-center">
+        {Array.from({ length: safeCount }, (_, index) => {
+          const animationData = PREPARED_TICKET_MASCOTS[mascotVariantForSlot(safeCount, index)]
+          return (
+            <div
+              key={`${safeCount}-${index}`}
+              className="ticket-mascot-reveal ticket-mascot-tint-base flex shrink-0 items-center justify-center"
+              style={{
+                width: mascotSize,
+                height: mascotSize,
+                marginLeft: index === 0 ? 0 : -overlapPx,
+              }}
+            >
+              <SingleKawaiiLottie size={mascotSize} animationData={animationData} />
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -248,27 +179,15 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
   const [count, setCount] = useState(1)
   const stepDirectionRef = useRef(0)
   const reduceMotion = useReducedMotion()
-  const mascotBandRef = useRef(null)
-  const [mascotBandHeightPx, setMascotBandHeightPx] = useState(0)
-
-  useLayoutEffect(() => {
-    const el = mascotBandRef.current
-    if (!el) return
-    const ro = new ResizeObserver((entries) => {
-      const h = entries[0]?.contentRect.height ?? 0
-      setMascotBandHeightPx(Math.floor(h))
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
 
   const decrement = () => {
     stepDirectionRef.current = -1
-    setCount((c) => Math.max(1, c - 1))
+    setCount((current) => Math.max(1, current - 1))
   }
+
   const increment = () => {
     stepDirectionRef.current = 1
-    setCount((c) => Math.min(10, c + 1))
+    setCount((current) => Math.min(10, current + 1))
   }
 
   useEffect(() => {
@@ -291,79 +210,55 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
 
   return (
     <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
-      {/* 1. Back arrow — mt/ml match BookingScreen close so the row below lines up */}
       <StaggerChild index={0} active={active} className="ml-4 mt-4 shrink-0 self-start">
         <button
+          type="button"
           onClick={onBack}
-          className="p-1 cursor-pointer bg-transparent border-none"
+          className="cursor-pointer border-none bg-transparent p-1"
           aria-label="Go back"
         >
           <ArrowLeft size={24} className="text-white/70" strokeWidth={2} />
         </button>
       </StaggerChild>
 
-      {/* 2. Mini movie card — shared with BookingScreen so size/position match screen 2 → 3 */}
       <StaggerChild index={0} active={active} className="shrink-0">
         <MiniMovieCardRow posterUrl={posterUrl} movie={movie} />
       </StaggerChild>
 
-      {/*
-        Reference layout: mascots vertically centered in the band below the heading and above the
-        counter; mascot→counter gap ≈ counter→Continue; dense bottom control group.
-        Slides in from the right (x → 0) on enter so the block reads as a smooth leftward settle;
-        movie row + Continue are outside this motion wrapper.
-      */}
       <motion.div
-        className="hide-scrollbar mx-6 mt-6 flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto"
+        className="hide-scrollbar mx-6 mt-8 flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         initial={reduceMotion ? IOS_TICKET_MAIN_ENTER_REDUCED : IOS_TICKET_MAIN_ENTER_INITIAL}
         animate={IOS_TICKET_MAIN_ENTER_ANIMATE}
         transition={IOS_TICKET_MAIN_ENTER_TRANSITION}
       >
-        <div className="flex shrink-0 flex-col gap-6">
-          <StaggerChild index={1} active={active} className="h-px w-full shrink-0 bg-white/10" />
+        <StaggerChild index={1} active={active} className="h-px w-full shrink-0 bg-white/10" />
 
-          <StaggerChild index={2} active={active} className="shrink-0">
-            <h2 className="text-white text-[24px] font-bold">Who's going?</h2>
-            <p className="text-gray-text mt-1 text-[14px]">Select tickets amount</p>
+        <StaggerChild index={2} active={active} className="shrink-0 pt-10">
+          <h2 className="text-[24px] font-bold text-white">Who&apos;s going?</h2>
+          <p className="mt-1 text-[14px] text-gray-text">Select tickets amount</p>
+        </StaggerChild>
+
+        <div className="flex min-h-0 flex-1 flex-col justify-center pb-4">
+          <StaggerChild index={3} active={active} className="shrink-0 pt-8">
+            <TicketMascot count={count} />
           </StaggerChild>
-        </div>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div
-            ref={mascotBandRef}
-            className="flex min-h-0 min-w-0 flex-[3] flex-col justify-center overflow-x-hidden overflow-y-hidden"
-          >
-            <StaggerChild
-              index={3}
-              active={active}
-              className="flex w-full min-w-0 max-w-full min-h-0 shrink-0 justify-center overflow-x-hidden px-1"
-            >
-              <div className="w-full min-w-0 max-w-full min-h-0 overflow-x-hidden">
-                <KawaiiMascotRow count={count} bandMaxHeightPx={mascotBandHeightPx} />
-              </div>
-            </StaggerChild>
-          </div>
-
-          <StaggerChild
-            index={4}
-            active={active}
-            className="flex w-full shrink-0 justify-center px-1 pb-6"
-          >
+          <StaggerChild index={4} active={active} className="shrink-0 pt-6">
             <div
-              className="flex w-full items-center justify-between gap-6"
-              style={{ maxWidth: TICKET_COUNTER_MAX_PX }}
+              className="mx-auto flex w-full items-center justify-between gap-6"
+              style={{ maxWidth: `${TICKET_COUNTER_MAX_PX}px` }}
             >
               <button
                 type="button"
                 onClick={decrement}
                 disabled={count <= 1}
-                className={`flex h-[56px] w-[56px] shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-dark-surface transition-opacity ${
-                  count <= 1 ? 'cursor-not-allowed opacity-40' : 'opacity-100'
+                className={`flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full border-none transition-opacity ${
+                  count <= 1 ? 'cursor-not-allowed bg-[#2B2B2F] opacity-40' : 'cursor-pointer bg-[#2B2B2F] opacity-100'
                 }`}
                 aria-label="Decrease tickets"
               >
-                <Minus size={22} className="text-white" strokeWidth={2} />
+                <Minus size={24} className="text-white" strokeWidth={2.4} />
               </button>
 
               <TicketQuantityDigit value={count} directionRef={stepDirectionRef} />
@@ -372,19 +267,18 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
                 type="button"
                 onClick={increment}
                 disabled={count >= 10}
-                className={`flex h-[56px] w-[56px] shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-dark-surface transition-opacity ${
-                  count >= 10 ? 'cursor-not-allowed opacity-40' : 'opacity-100'
+                className={`flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full border-none transition-opacity ${
+                  count >= 10 ? 'cursor-not-allowed bg-[#2B2B2F] opacity-40' : 'cursor-pointer bg-[#2B2B2F] opacity-100'
                 }`}
                 aria-label="Increase tickets"
               >
-                <Plus size={22} className="text-white" strokeWidth={2} />
+                <Plus size={24} className="text-white" strokeWidth={2.4} />
               </button>
             </div>
           </StaggerChild>
         </div>
       </motion.div>
 
-      {/* Continue — same chrome as BookingScreen; pb uses safe-area when larger than pb-10 */}
       <StaggerChild
         index={5}
         active={active}

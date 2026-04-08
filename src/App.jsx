@@ -7,8 +7,10 @@ import BottomNav from './components/BottomNav'
 import BookingScreen from './components/BookingScreen'
 import TicketScreen from './components/TicketScreen'
 import SeatSelectorScreen from './components/SeatSelectorScreen'
+import dunePreviewVideo from '../dune.mp4'
 
 const POSTER_URL = '/poster.jpg'
+const CINEMA_PREVIEW_URL = dunePreviewVideo
 
 const MOVIE = {
   title: 'Dune 3',
@@ -269,6 +271,7 @@ function App() {
           <div className="flex h-full min-h-0 w-full max-w-[430px] flex-col overflow-hidden">
             <SeatSelectorScreen
               posterUrl={POSTER_URL}
+              previewVideoUrl={CINEMA_PREVIEW_URL}
               movie={MOVIE}
               ticketQty={ticketQty}
               onBack={handleSeatsBack}

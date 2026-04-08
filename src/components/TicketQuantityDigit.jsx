@@ -30,7 +30,7 @@ export default function TicketQuantityDigit({ value, directionRef }) {
 
   return (
     <div
-      className="relative flex h-[52px] w-[64px] shrink-0 items-center justify-center overflow-hidden"
+      className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden"
       aria-live="polite"
       aria-atomic="true"
     >
@@ -43,7 +43,7 @@ export default function TicketQuantityDigit({ value, directionRef }) {
           animate="center"
           exit="exit"
           transition={DIGIT_TRANSITION}
-          className="absolute inset-0 flex items-center justify-center text-[40px] font-bold leading-none tabular-nums text-white"
+          className="absolute inset-0 flex items-center justify-center text-[48px] font-bold leading-none tabular-nums text-white"
           style={{ willChange: 'transform, opacity' }}
         >
           {value}
