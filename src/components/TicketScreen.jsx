@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useLayoutEffect } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { useLottie } from 'lottie-react'
 import { ArrowLeft, Minus, Plus } from 'lucide-react'
 import imdbLogo from '../assets/imdb-logo.svg'
@@ -6,6 +7,13 @@ import kawaiiHiAnimation from '../assets/kawaii-emoji-hi.json'
 import kawaiiEmojiAnimation from '../assets/kawaii-animals-emoji-animation.json'
 import kawaiiGivingLoveAnimation from '../assets/kawaii-animals-giving-love.json'
 import { prepareLottieData } from '../utils/prepareLottieData.js'
+import TicketQuantityDigit from './TicketQuantityDigit.jsx'
+import {
+  IOS_TICKET_MAIN_ENTER_ANIMATE,
+  IOS_TICKET_MAIN_ENTER_INITIAL,
+  IOS_TICKET_MAIN_ENTER_REDUCED,
+  IOS_TICKET_MAIN_ENTER_TRANSITION,
+} from '../motion/iosScreenMotion.js'
 
 /** Ground disc layer name shared by these mascot exports */
 const MASCOT_LOTTIE_PREPARE = { omitLayers: ['Layer 1'] }
@@ -232,9 +240,17 @@ function KawaiiMascotRow({ count }) {
 
 export default function TicketScreen({ posterUrl, movie, onBack, onContinue, active }) {
   const [count, setCount] = useState(1)
+  const stepDirectionRef = useRef(0)
+  const reduceMotion = useReducedMotion()
 
-  const decrement = () => setCount((c) => Math.max(1, c - 1))
-  const increment = () => setCount((c) => Math.min(10, c + 1))
+  const decrement = () => {
+    stepDirectionRef.current = -1
+    setCount((c) => Math.max(1, c - 1))
+  }
+  const increment = () => {
+    stepDirectionRef.current = 1
+    setCount((c) => Math.min(10, c + 1))
+  }
 
   useEffect(() => {
     if (!active) return
@@ -294,10 +310,15 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
       {/*
         Reference layout: mascots vertically centered in the band below the heading and above the
         counter; mascot→counter gap ≈ counter→Continue; dense bottom control group.
+        Slides in from the right (x → 0) on enter so the block reads as a smooth leftward settle;
+        movie row + Continue are outside this motion wrapper.
       */}
-      <div
+      <motion.div
         className="hide-scrollbar mx-6 mt-8 flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        initial={reduceMotion ? IOS_TICKET_MAIN_ENTER_REDUCED : IOS_TICKET_MAIN_ENTER_INITIAL}
+        animate={IOS_TICKET_MAIN_ENTER_ANIMATE}
+        transition={IOS_TICKET_MAIN_ENTER_TRANSITION}
       >
         <div className="flex shrink-0 flex-col gap-6">
           <StaggerChild index={1} active={active} className="h-px w-full shrink-0 bg-white/10" />
@@ -345,9 +366,7 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
                 <Minus size={22} className="text-white" />
               </button>
 
-              <span className="min-w-[48px] shrink-0 text-center text-[40px] font-bold leading-none tabular-nums text-white">
-                {count}
-              </span>
+              <TicketQuantityDigit value={count} directionRef={stepDirectionRef} />
 
               <button
                 type="button"
@@ -363,7 +382,7 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
             </div>
           </StaggerChild>
         </div>
-      </div>
+      </motion.div>
 
       {/* Continue — margin matches TICKET_STACK_GAP_PX (reference: equal vertical rhythm). */}
       <StaggerChild
