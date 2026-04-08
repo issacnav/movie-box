@@ -51,6 +51,8 @@ function App() {
   const overlayRef = useRef(null)
   const miniCardRef = useRef(null)
   const posterRectRef = useRef(null)
+  /** One-shot: skip opacity transition when landing on home after reverse morph (avoids gap + slow fade). */
+  const revealHomeInstantRef = useRef(false)
 
   const handleBuyTickets = useCallback(() => {
     const container = containerRef.current
@@ -64,7 +66,11 @@ function App() {
   const handleClose = useCallback(() => {
     const container = containerRef.current
     const miniCard = miniCardRef.current
-    if (!container || !miniCard) { setScreen('home'); return }
+    if (!container || !miniCard) {
+      revealHomeInstantRef.current = true
+      setScreen('home')
+      return
+    }
     posterRectRef.current.reverseFrom = relativeRect(miniCard, container)
     posterRectRef.current.reverseFrom.borderRadius = 12
     setScreen('morphing-back')
@@ -141,7 +147,10 @@ function App() {
     overlay.style.height = to.height + 'px'
     overlay.style.borderRadius = to.borderRadius + 'px'
 
-    const done = () => setScreen('home')
+    const done = () => {
+      revealHomeInstantRef.current = true
+      setScreen('home')
+    }
     const onEnd = (e) => {
       if (e.target !== overlay || e.propertyName !== 'top') return
       overlay.removeEventListener('transitionend', onEnd)
@@ -159,23 +168,47 @@ function App() {
     }
   }, [screen])
 
-  const isHome = screen === 'home'
   const isMorphing = screen === 'morphing' || screen === 'morphing-back'
   const showBookingLayer = screen === 'morphing' || screen === 'booking'
   const bookingContentLive = screen === 'booking'
   const isTickets = screen === 'tickets'
   const isConfirmation = screen === 'confirmation'
 
+  /**
+   * Keep the home layer mounted while booking (and other full-screen flows except tickets).
+   * If we unmount on booking, closing runs reverse morph then remounts home from scratch —
+   * layout/fonts/images pop in after a short opacity fade. Staying mounted keeps a smooth return.
+   */
+  const homeLayerMounted = !isTickets
+  const homeLayerVisible = screen === 'home'
+  const homeLayerInteractive = screen === 'home'
+  const { duration: homeFadeDuration } = morphTiming()
+
+  const skipHomeOpacityTransition = homeLayerVisible && revealHomeInstantRef.current
+
+  useLayoutEffect(() => {
+    if (screen === 'home') {
+      revealHomeInstantRef.current = false
+    }
+  }, [screen])
+
   return (
     <div
       ref={containerRef}
       className="relative min-h-screen max-w-[430px] mx-auto bg-dark overflow-hidden flex flex-col"
     >
-      {/* Home screen */}
-      {(isHome || screen === 'morphing' || screen === 'morphing-back') && (
+      {/* Home screen — DOM stays warm under booking/confirmation; only opacity toggles */}
+      {homeLayerMounted && (
         <div
-          className="flex flex-col flex-1"
-          style={{ opacity: isMorphing ? 0 : 1, transition: 'opacity 0.15s' }}
+          className="flex min-h-0 flex-1 flex-col"
+          style={{
+            opacity: homeLayerVisible ? 1 : 0,
+            pointerEvents: homeLayerInteractive ? 'auto' : 'none',
+            transition: skipHomeOpacityTransition
+              ? 'none'
+              : `opacity ${homeFadeDuration} ${MORPH_EASE}`,
+          }}
+          aria-hidden={!homeLayerInteractive}
         >
           <TopNav />
           <div ref={posterCardRef}>
