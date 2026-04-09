@@ -17,23 +17,9 @@ function usePrefersReducedMotion() {
 /**
  * Tab icon: Lottie idle at frame 0; plays full segment on each `playToken` bump; tints to light UI.
  */
-/** Regular/outline Lotties (e.g. system-regular-*) read hollow vs solid icons — thicken via soft drop-shadow. */
-function lottieTintFilter(outlineCompensate) {
-  const base = 'brightness(0) invert(1)'
-  if (!outlineCompensate) return base
-  return `${base} drop-shadow(0 0 0.55px #fff) drop-shadow(0 0 1px rgba(255,255,255,0.75)) drop-shadow(0 0 1.5px rgba(255,255,255,0.35))`
-}
-
-function NavLottieIcon({ rawAnimationData, playToken, isActive, size, outlineCompensate = false }) {
+function NavLottieIcon({ rawAnimationData, playToken, isActive, size }) {
   const reduceMotion = usePrefersReducedMotion()
-  const animationData = useMemo(
-    () =>
-      prepareLottieData(rawAnimationData, {
-        // Ticket asset is system-regular-* (stroke-forward); home/bookmark are heavier fills.
-        strokeWidthScale: outlineCompensate ? 1.16 : undefined,
-      }),
-    [rawAnimationData, outlineCompensate],
-  )
+  const animationData = useMemo(() => prepareLottieData(rawAnimationData), [rawAnimationData])
   const onCompleteRef = useRef(() => {})
 
   const style = useMemo(() => ({ width: size, height: size, display: 'block' }), [size])
@@ -91,7 +77,7 @@ function NavLottieIcon({ rawAnimationData, playToken, isActive, size, outlineCom
       style={{
         width: size,
         height: size,
-        filter: lottieTintFilter(outlineCompensate),
+        filter: 'brightness(0) invert(1)',
       }}
       aria-hidden
     >
@@ -192,7 +178,6 @@ export default function BottomNav({ activeTab = 'home', onTabChange }) {
                 playToken={plays.theatre}
                 isActive={activeTab === 'theatre'}
                 size={iconSize}
-                outlineCompensate
               />
               <span className={labelClass(activeTab === 'theatre')}>Theatre</span>
             </button>
