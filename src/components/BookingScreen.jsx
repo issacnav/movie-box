@@ -1,28 +1,14 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { X, ChevronDown } from 'lucide-react'
 import ShowtimeGrid from './ShowtimeGrid'
 import MiniMovieCardRow from './MiniMovieCardRow.jsx'
+import { openingWeekForMovie } from '../data/featuredMovies'
 
-/** Opening week around US release Fri Dec 18, 2026 (Dune: Part Three). */
-const DAYS = [
-  { date: 17, day: 'Thu' },
-  { date: 18, day: 'Fri' },
-  { date: 19, day: 'Sat' },
-  { date: 20, day: 'Sun' },
-]
-
-/** Checkout / ticket copy — aligned with date chips (Dec 2026). */
-const DATE_LINE_BY_DATE = {
-  17: 'Thu, Dec 17, 2026',
-  18: 'Fri, Dec 18, 2026',
-  19: 'Sat, Dec 19, 2026',
-  20: 'Sun, Dec 20, 2026',
-}
-
-/** Dates that open the showtime panel (above Continue) */
-const DATES_WITH_SHOWTIMES = [17, 18, 19]
-
-const PANEL_MS = 280
+/** Showtime panel: fast start, slow settle (open); slightly quicker collapse — iOS-adjacent. */
+const PANEL_OPEN_MS = 540
+const PANEL_CLOSE_MS = 340
+const PANEL_EASE_OPEN = 'cubic-bezier(0.32, 0.72, 0, 1)'
+const PANEL_EASE_CLOSE = 'cubic-bezier(0.4, 0, 0.2, 1)'
 
 function StaggerChild({ index, active, children, className = '', style = {} }) {
   const [visible, setVisible] = useState(() => Boolean(active))
@@ -61,16 +47,45 @@ export default function BookingScreen({
   revealStaticCopy,
 }) {
   const hideUntilMorph = !revealStaticCopy
-  const [selectedDate, setSelectedDate] = useState(null)
+  const week = useMemo(() => openingWeekForMovie(movie), [movie])
+  const showtimeSet = useMemo(() => new Set(week.showtimeChipIds), [week])
+
+  const [panelMsOpen, setPanelMsOpen] = useState(PANEL_OPEN_MS)
+  const [panelMsClose, setPanelMsClose] = useState(PANEL_CLOSE_MS)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const apply = () => {
+      setPanelMsOpen(mq.matches ? 120 : PANEL_OPEN_MS)
+      setPanelMsClose(mq.matches ? 100 : PANEL_CLOSE_MS)
+    }
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
+
+  const [selectedDateId, setSelectedDateId] = useState(null)
   const [selectedShowtime, setSelectedShowtime] = useState(null)
 
-  const showTimePanel =
-    selectedDate != null && DATES_WITH_SHOWTIMES.includes(selectedDate)
+  useEffect(() => {
+    setSelectedDateId(null)
+    setSelectedShowtime(null)
+  }, [movie?.id])
 
-  const selectDate = useCallback((date) => {
-    setSelectedDate(date)
+  const showTimePanel = selectedDateId != null && showtimeSet.has(selectedDateId)
+
+  const selectDate = useCallback((id) => {
+    setSelectedDateId(id)
     setSelectedShowtime(null)
   }, [])
+
+  const selectedDateLine = useMemo(() => {
+    const chip = week.chips.find((c) => c.id === selectedDateId)
+    return chip?.line ?? ''
+  }, [week.chips, selectedDateId])
+
+  const panelMs = showTimePanel ? panelMsOpen : panelMsClose
+  const panelEase = showTimePanel ? PANEL_EASE_OPEN : PANEL_EASE_CLOSE
 
   const canContinue = Boolean(selectedShowtime)
 
@@ -116,18 +131,18 @@ export default function BookingScreen({
           {/* 5. Date selector + day labels — grid avoids horizontal overflow on narrow phones */}
           <StaggerChild index={2} active={active} className="mx-5 mt-5 sm:mx-6 sm:mt-6">
             <div className="grid w-full grid-cols-5 gap-2 sm:gap-3">
-              {DAYS.map((d) => {
-                const isSelected = selectedDate === d.date
+              {week.chips.map((c) => {
+                const isSelected = selectedDateId === c.id
                 return (
                   <button
-                    key={d.date}
+                    key={c.id}
                     type="button"
-                    onClick={() => selectDate(d.date)}
+                    onClick={() => selectDate(c.id)}
                     className={`aspect-square w-full max-h-[60px] cursor-pointer rounded-full border-none text-[15px] font-medium transition-colors duration-200 ease-out sm:text-[18px] ${
                       isSelected ? 'bg-white text-dark' : 'bg-dark-surface text-white'
                     }`}
                   >
-                    {d.date}
+                    {c.dayNum}
                   </button>
                 )
               })}
@@ -140,9 +155,9 @@ export default function BookingScreen({
               </button>
             </div>
             <div className="mt-2 grid w-full grid-cols-5 gap-2 sm:gap-3">
-              {DAYS.map((d) => (
-                <span key={d.day + d.date} className="text-center text-[10px] text-gray-text sm:text-[11px]">
-                  {d.day}
+              {week.chips.map((c) => (
+                <span key={c.id} className="text-center text-[10px] text-gray-text sm:text-[11px]">
+                  {c.weekday}
                 </span>
               ))}
               <span className="min-h-[1em]" aria-hidden />
@@ -164,17 +179,23 @@ export default function BookingScreen({
 
           {/* Showtimes: emerge from bottom (transform + opacity; grid-rows reveal — motion skill) */}
           <div
-            className={`booking-time-panel-grid grid shrink-0 overflow-hidden transition-[grid-template-rows] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            className={`booking-time-panel-grid grid shrink-0 overflow-hidden transition-[grid-template-rows] ${
               showTimePanel ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
             }`}
-            style={{ transitionDuration: `${PANEL_MS}ms` }}
+            style={{
+              transitionDuration: `${panelMs}ms`,
+              transitionTimingFunction: panelEase,
+            }}
           >
             <div className="min-h-0 overflow-hidden">
               <div
-                className={`booking-time-panel-inner px-5 pb-3 transition-[opacity,transform] ease-[cubic-bezier(0.22,1,0.36,1)] sm:px-6 ${
+                className={`booking-time-panel-inner px-5 pb-3 transition-[opacity,transform] sm:px-6 ${
                   showTimePanel ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'
                 }`}
-                style={{ transitionDuration: `${PANEL_MS}ms` }}
+                style={{
+                  transitionDuration: `${panelMs}ms`,
+                  transitionTimingFunction: panelEase,
+                }}
               >
                 <p className="mb-3 text-[12px] text-gray-text sm:text-[13px]">Select showtime</p>
                 <ShowtimeGrid value={selectedShowtime} onChange={setSelectedShowtime} />
@@ -197,7 +218,7 @@ export default function BookingScreen({
             canContinue
               ? () =>
                   onContinue?.({
-                    whenLine: `${DATE_LINE_BY_DATE[selectedDate] ?? ''} at ${selectedShowtime}`,
+                    whenLine: `${selectedDateLine} at ${selectedShowtime}`,
                     screenNumber: 2,
                   })
               : undefined
