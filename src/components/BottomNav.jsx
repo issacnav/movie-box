@@ -15,12 +15,15 @@ function usePrefersReducedMotion() {
 }
 
 /**
- * Tab icon: Lottie idle at frame 0; plays full segment on each `playToken` bump; tints to light UI.
+ * Tab icon: idle at frame 0; plays only when `playToken` increments (clicked tab only).
  */
 function NavLottieIcon({ rawAnimationData, playToken, isActive, size }) {
   const reduceMotion = usePrefersReducedMotion()
   const animationData = useMemo(() => prepareLottieData(rawAnimationData), [rawAnimationData])
   const onCompleteRef = useRef(() => {})
+  const goToAndStopRef = useRef(() => {})
+  const goToAndPlayRef = useRef(() => {})
+  const prevPlayTokenRef = useRef(0)
 
   const style = useMemo(() => ({ width: size, height: size, display: 'block' }), [size])
 
@@ -41,23 +44,34 @@ function NavLottieIcon({ rawAnimationData, playToken, isActive, size }) {
 
   const { View, goToAndStop, goToAndPlay } = useLottie(lottieOptions, style)
 
+  goToAndStopRef.current = goToAndStop
+  goToAndPlayRef.current = goToAndPlay
   onCompleteRef.current = () => {
-    goToAndStop(0, true)
+    goToAndStopRef.current(0, true)
   }
 
+  // Reset idle frame when JSON changes; do not depend on unstable Lottie method identities.
   useEffect(() => {
-    goToAndStop(0, true)
-  }, [animationData, goToAndStop])
+    prevPlayTokenRef.current = 0
+    goToAndStopRef.current(0, true)
+  }, [animationData])
 
+  // Play only when this tab's counter goes up (user tapped this item), not when siblings re-render.
   useEffect(() => {
-    if (playToken <= 0 || reduceMotion) return
-    goToAndPlay(0, true)
-  }, [playToken, goToAndPlay, reduceMotion])
+    if (reduceMotion) return
+    if (playToken <= 0) {
+      prevPlayTokenRef.current = playToken
+      return
+    }
+    if (playToken === prevPlayTokenRef.current) return
+    prevPlayTokenRef.current = playToken
+    goToAndPlayRef.current(0, true)
+  }, [playToken, reduceMotion])
 
   useEffect(() => {
     if (!reduceMotion) return
-    goToAndStop(0, true)
-  }, [reduceMotion, goToAndStop])
+    goToAndStopRef.current(0, true)
+  }, [reduceMotion])
 
   if (!animationData) {
     return (
