@@ -1,5 +1,30 @@
 import { useState, useMemo, useCallback, useEffect, useId, useRef } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { ArrowLeft, ChevronDown } from 'lucide-react'
+import StaggeredAnimation from '../lib/StaggeredAnimation.jsx'
+
+const MotionDiv = motion.div
+
+/** Section entrance: rise from well below (clear upward travel), subtle scale, decelerating ease. */
+const SECTION_EASE = [0.16, 1, 0.3, 1]
+const SECTION_ENTER_DUR = 0.58
+/** Pixels below rest — header & title start lowest; preview slightly less; rest of page a bit less. */
+const SECTION_ENTER_Y_HEADER = 168
+const SECTION_ENTER_Y_PREVIEW = 148
+const SECTION_ENTER_Y = 112
+const SECTION_ENTER_SCALE = 0.94
+const SECTION_ORIGIN = { transformOrigin: '50% 52%' }
+
+/** Stagger order: header → preview → seat block → pill → chip → CTA */
+const DELAY_PREVIEW = 0.07
+const DELAY_SEAT_BLOCK = 0.14
+const DELAY_CHIP = 0.22
+const DELAY_CTA = 0.28
+
+/** Chair cascade starts after the seat-map *section* motion finishes (+ small gap). */
+const CHAIR_STAGGER_MS = 11
+const CHAIR_START_MS = Math.round((DELAY_SEAT_BLOCK + SECTION_ENTER_DUR) * 1000 + 100)
+const CHAIR_TRANSITION_MS = 440
 
 /** Cinema screen art: outer frame + inner picture area (video clips to inner only) */
 const SCREEN_OUTER_PATH =
@@ -50,17 +75,19 @@ const THEATER_FRAME_MAX_WIDTH = 360
 
 function SeatSelectorHeader({ onBack }) {
   return (
-    <header className="shrink-0 px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
+    <header className="shrink-0 px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-1">
       <button
         type="button"
         onClick={onBack}
-        className="-ml-1 mb-3 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-none bg-white/[0.06] p-0 backdrop-blur-sm transition-colors active:bg-white/[0.12]"
+        className="-ml-1 mb-5 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/[0.06] bg-white/[0.05] p-0 backdrop-blur-md transition-[background-color,transform] duration-200 ease-out active:scale-[0.96] active:bg-white/[0.1]"
         aria-label="Go back"
       >
-        <ArrowLeft size={20} className="text-white/90" strokeWidth={2.2} />
+        <ArrowLeft size={20} className="text-white/[0.92]" strokeWidth={2.2} />
       </button>
-      <h1 className="text-[28px] font-bold tracking-[-0.02em] text-white">Where to Sit?</h1>
-      <p className="mt-0.5 text-[13px] font-medium tracking-wide uppercase text-white/40">Select Seats</p>
+      <h1 className="text-[30px] font-semibold leading-[1.12] tracking-[-0.03em] text-white">
+        Where to Sit?
+      </h1>
+      <p className="mt-2 text-[12px] font-medium uppercase tracking-[0.2em] text-white/38">Select Seats</p>
     </header>
   )
 }
@@ -70,21 +97,18 @@ function SeatCell({ id, state, onToggle }) {
   const isUnavailable = state === 'unavailable'
   const isAvailable = state === 'available'
 
-  const stroke = isSelected ? '#F5C518' : isUnavailable ? '#1E1E22' : '#55555A'
-  const fill = isSelected ? 'rgba(245, 197, 24, 0.22)' : isUnavailable ? '#111113' : '#28282C'
-  const opacity = isUnavailable ? 0.32 : 1
+  const stroke = isSelected ? '#E8C547' : isUnavailable ? '#2A2A2E' : '#5C5C62'
+  const fill = isSelected ? 'rgba(232, 197, 71, 0.2)' : isUnavailable ? '#141416' : '#2A2A2E'
+  const opacity = isUnavailable ? 0.42 : 1
 
   return (
     <button
       type="button"
       disabled={isUnavailable}
       onClick={() => isAvailable && onToggle(id)}
-      className={`flex h-[22px] w-[18px] shrink-0 items-center justify-center border-none bg-transparent p-0 transition-all duration-200 ease-out ${
-        isAvailable ? 'cursor-pointer active:scale-[0.85]' : 'cursor-default'
+      className={`flex h-[22px] w-[18px] shrink-0 items-center justify-center border-none bg-transparent p-0 transition-[opacity,transform] duration-[220ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        isAvailable ? 'cursor-pointer active:scale-[0.94] active:opacity-90' : 'cursor-default'
       }`}
-      style={isSelected ? {
-        filter: 'drop-shadow(0 0 6px rgba(245,197,24,0.5)) drop-shadow(0 0 12px rgba(245,197,24,0.2))',
-      } : undefined}
       aria-pressed={isSelected}
       aria-label={isUnavailable ? 'Seat unavailable' : isSelected ? 'Seat selected' : 'Seat available'}
     >
@@ -112,34 +136,66 @@ function SeatCell({ id, state, onToggle }) {
   )
 }
 
-function SeatRow({ rowIndex, children }) {
-  const curve = Math.sin((rowIndex + 0.5) * 0.5) * 3
-  return (
-    <div
-      className="flex justify-center gap-[5px]"
-      style={{ transform: `translateX(${curve}px)` }}
-    >
-      {children}
-    </div>
-  )
+function theaterRowStaggerMeta(layout) {
+  let idx = 0
+  return layout.map((def) => {
+    const leftOffset = idx
+    idx += def.left
+    const rightOffset = idx
+    idx += def.right
+    return { def, leftOffset, rightOffset }
+  })
 }
 
-function SeatGrid({ layout, seatStates, onToggle }) {
+function SeatGrid({ layout, seatStates, onToggle, chairMotionDisabled }) {
+  const rows = useMemo(() => theaterRowStaggerMeta(layout), [layout])
+
   return (
-    <div className="flex flex-col items-center gap-[5px]">
-      {layout.map((def, i) => (
-        <SeatRow key={def.row} rowIndex={i}>
-          {Array.from({ length: def.left }, (_, j) => {
-            const id = `${def.row}-L${j}`
-            return <SeatCell key={id} id={id} state={seatStates.get(id)} onToggle={onToggle} />
-          })}
-          <div className="mx-[3px] w-[14px] shrink-0" aria-hidden />
-          {Array.from({ length: def.right }, (_, j) => {
-            const id = `${def.row}-R${j}`
-            return <SeatCell key={id} id={id} state={seatStates.get(id)} onToggle={onToggle} />
-          })}
-        </SeatRow>
-      ))}
+    <div className="flex flex-col items-center gap-y-[7px]">
+      {rows.map(({ def, leftOffset, rightOffset }, i) => {
+        const leftCells = Array.from({ length: def.left }, (_, j) => {
+          const id = `${def.row}-L${j}`
+          return <SeatCell key={id} id={id} state={seatStates.get(id)} onToggle={onToggle} />
+        })
+        const rightCells = Array.from({ length: def.right }, (_, j) => {
+          const id = `${def.row}-R${j}`
+          return <SeatCell key={id} id={id} state={seatStates.get(id)} onToggle={onToggle} />
+        })
+
+        const curve = Math.sin((i + 0.5) * 0.48) * 4.5
+
+        return (
+          <div
+            key={def.row}
+            className="flex w-full max-w-[min(100%,340px)] justify-center gap-x-[5px]"
+            style={{ transform: `translateX(${curve}px)` }}
+          >
+            <StaggeredAnimation
+              indexOffset={leftOffset}
+              start={chairMotionDisabled ? 0 : CHAIR_START_MS}
+              delay={chairMotionDisabled ? 0 : CHAIR_STAGGER_MS}
+              duration={CHAIR_TRANSITION_MS}
+              transitionName="seat-stagger"
+              disabled={chairMotionDisabled}
+              className="flex gap-x-[5px]"
+            >
+              {leftCells}
+            </StaggeredAnimation>
+            <div className="mx-[1px] w-[18px] shrink-0" aria-hidden />
+            <StaggeredAnimation
+              indexOffset={rightOffset}
+              start={chairMotionDisabled ? 0 : CHAIR_START_MS}
+              delay={chairMotionDisabled ? 0 : CHAIR_STAGGER_MS}
+              duration={CHAIR_TRANSITION_MS}
+              transitionName="seat-stagger"
+              disabled={chairMotionDisabled}
+              className="flex gap-x-[5px]"
+            >
+              {rightCells}
+            </StaggeredAnimation>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -148,38 +204,69 @@ function SeatsTogetherChip({ count }) {
   return (
     <button
       type="button"
-      className="mx-auto flex min-w-[190px] cursor-pointer items-center justify-center gap-1.5 rounded-full border border-white/[0.07] bg-[#1C1C20] px-4 py-2.5 text-center text-[13px] font-medium tracking-wide text-white/90 transition-colors active:bg-[#28282C]"
-      style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 3px rgba(0,0,0,0.3)' }}
+      className="mx-auto flex min-w-[200px] cursor-pointer items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-[#18181C] px-5 py-3 text-center text-[13px] font-medium tracking-[-0.01em] text-white/[0.92] transition-[background-color,transform] duration-200 ease-out active:scale-[0.98] active:bg-[#222226]"
+      style={{
+        boxShadow:
+          'inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 0 rgba(255,255,255,0.03), 0 8px 28px -12px rgba(0,0,0,0.65)',
+      }}
     >
       {count} {count === 1 ? 'Seat' : 'Seats'} Together
-      <ChevronDown size={14} className="ml-0.5 text-white/40" strokeWidth={2.2} />
+      <ChevronDown size={15} className="text-white/45" strokeWidth={2.2} />
     </button>
   )
 }
 
 function SeatHelperText() {
   return (
-    <p className="text-center text-[11px] leading-snug tracking-wide text-white/35">
+    <p className="max-w-[260px] text-center text-[11px] leading-relaxed tracking-wide text-white/34">
       Showing where you can sit together
     </p>
   )
 }
 
+function SelectedSeatPill({ rowLabel, count, reduceMotion }) {
+  if (count <= 0 || rowLabel == null) return null
+  return (
+    <MotionDiv
+      role="status"
+      style={SECTION_ORIGIN}
+      initial={
+        reduceMotion
+          ? { opacity: 1, y: 0, scale: 1 }
+          : { opacity: 0, y: SECTION_ENTER_Y * 0.72, scale: SECTION_ENTER_SCALE }
+      }
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{
+        duration: reduceMotion ? 0 : SECTION_ENTER_DUR * 0.82,
+        ease: SECTION_EASE,
+        delay: 0,
+      }}
+      className="pointer-events-none mx-auto w-fit max-w-[min(100%,280px)] rounded-full border border-white/[0.09] bg-white/[0.07] px-5 py-2.5 text-center text-[13px] font-medium tracking-[-0.015em] text-white/[0.92] shadow-[0_12px_40px_-16px_rgba(0,0,0,0.75)] backdrop-blur-xl backdrop-saturate-150"
+    >
+      Row {rowLabel} · {count} {count === 1 ? 'seat' : 'seats'}
+    </MotionDiv>
+  )
+}
+
 function BottomCTA({ disabled, onContinue }) {
   return (
-    <div className="shrink-0 px-6 pt-5 pb-[max(2rem,env(safe-area-inset-bottom))]">
+    <div className="shrink-0 px-6 pt-4 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
       <button
         type="button"
         disabled={disabled}
         onClick={disabled ? undefined : onContinue}
-        className={`h-[52px] w-full rounded-full border-none text-[15px] font-semibold tracking-[-0.01em] transition-all duration-250 ease-out ${
+        className={`h-[54px] w-full rounded-full border-none text-[15px] font-semibold tracking-[-0.02em] transition-[transform,filter,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           disabled
-            ? 'cursor-not-allowed bg-[#1C1C20] text-white/20'
-            : 'cursor-pointer bg-yellow text-dark active:scale-[0.98] active:brightness-95'
+            ? 'cursor-not-allowed bg-[#18181A] text-white/22'
+            : 'cursor-pointer bg-yellow text-dark active:scale-[0.987] active:brightness-[0.97]'
         }`}
-        style={!disabled ? {
-          boxShadow: '0 4px 20px -4px rgba(245,197,24,0.35), 0 1px 3px rgba(245,197,24,0.15)',
-        } : undefined}
+        style={
+          !disabled
+            ? {
+                boxShadow: '0 10px 36px -14px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.22)',
+              }
+            : undefined
+        }
       >
         Continue
       </button>
@@ -375,22 +462,27 @@ function CinemaScreenMedia({ videoUrl, title }) {
   )
 }
 
-function SeatMapSection({ layout, seatStates, onToggle }) {
+function SeatMapSection({ layout, seatStates, onToggle, chairMotionDisabled }) {
   return (
     <div className="relative mx-auto w-full min-w-0 shrink-0 px-6">
       <div
         className="relative mx-auto flex w-full flex-col items-center"
-        style={{ maxWidth: `${THEATER_FRAME_MAX_WIDTH}px`, perspective: '500px' }}
+        style={{ maxWidth: `${THEATER_FRAME_MAX_WIDTH}px`, perspective: '720px' }}
       >
         <div
-          className="w-full pt-0"
+          className="w-full pt-1"
           style={{
-            transform: 'perspective(550px) rotateX(10deg) scale(0.96)',
+            transform: 'perspective(620px) rotateX(11deg) translateZ(0) scale(0.97)',
             transformOrigin: '50% 0%',
           }}
         >
           <div className="flex justify-center">
-            <SeatGrid layout={layout} seatStates={seatStates} onToggle={onToggle} />
+            <SeatGrid
+              layout={layout}
+              seatStates={seatStates}
+              onToggle={onToggle}
+              chairMotionDisabled={chairMotionDisabled}
+            />
           </div>
         </div>
       </div>
@@ -415,6 +507,7 @@ export default function SeatSelectorScreen({
   onContinue,
   active,
 }) {
+  const reduceMotion = useReducedMotion()
   const layout = THEATER_ROWS
   const allIds = useMemo(() => buildSeatModel(layout), [layout])
 
@@ -474,6 +567,25 @@ export default function SeatSelectorScreen({
     }
   }, [active])
 
+  const sectionEnterFor = (yPx) =>
+    reduceMotion
+      ? {
+          initial: { opacity: 1, y: 0, scale: 1 },
+          transition: { duration: 0 },
+        }
+      : {
+          initial: {
+            opacity: 0,
+            y: yPx,
+            scale: SECTION_ENTER_SCALE,
+          },
+          transition: { duration: SECTION_ENTER_DUR, ease: SECTION_EASE },
+        }
+
+  const headerEnter = sectionEnterFor(SECTION_ENTER_Y_HEADER)
+  const previewEnter = sectionEnterFor(SECTION_ENTER_Y_PREVIEW)
+  const blockEnter = sectionEnterFor(SECTION_ENTER_Y)
+
   const handleContinue = useCallback(() => {
     if (!canContinue) return
     const parse = (id) => {
@@ -492,28 +604,81 @@ export default function SeatSelectorScreen({
   }, [canContinue, selected, onContinue, overlayRow, selectedCount])
 
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-[#050506]">
-      <SeatSelectorHeader onBack={onBack} />
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-[#0D0D0F]">
+      <MotionDiv
+        className="shrink-0"
+        style={SECTION_ORIGIN}
+        initial={headerEnter.initial}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={headerEnter.transition}
+      >
+        <SeatSelectorHeader onBack={onBack} />
+      </MotionDiv>
 
       <div className="relative flex min-h-0 flex-1 overflow-y-auto hide-scrollbar">
-        <div className="flex min-h-full w-full flex-col justify-center gap-5 py-4">
-          <div
+        <div className="flex min-h-full w-full flex-col justify-center gap-6 py-5">
+          <MotionDiv
             className="mx-auto w-full shrink-0 px-6"
-            style={{ maxWidth: `${THEATER_FRAME_MAX_WIDTH}px` }}
+            style={{ maxWidth: `${THEATER_FRAME_MAX_WIDTH}px`, ...SECTION_ORIGIN }}
+            initial={previewEnter.initial}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{
+              ...previewEnter.transition,
+              delay: reduceMotion ? 0 : DELAY_PREVIEW,
+            }}
           >
             <CinemaScreenMedia videoUrl={movie?.previewVideoUrl} title={movie?.title} />
+          </MotionDiv>
+
+          <MotionDiv
+            style={SECTION_ORIGIN}
+            initial={blockEnter.initial}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{
+              ...blockEnter.transition,
+              delay: reduceMotion ? 0 : DELAY_SEAT_BLOCK,
+            }}
+          >
+            <SeatMapSection
+              layout={layout}
+              seatStates={seatStates}
+              onToggle={toggle}
+              chairMotionDisabled={reduceMotion}
+            />
+          </MotionDiv>
+
+          <div className="flex shrink-0 flex-col items-center gap-3 px-6">
+            <SelectedSeatPill rowLabel={overlayRow} count={selectedCount} reduceMotion={reduceMotion} />
           </div>
 
-          <SeatMapSection layout={layout} seatStates={seatStates} onToggle={toggle} />
-
-          <div className="mt-4 flex shrink-0 flex-col items-center gap-3 px-6">
+          <MotionDiv
+            className="flex shrink-0 flex-col items-center gap-2.5 px-6"
+            style={SECTION_ORIGIN}
+            initial={blockEnter.initial}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{
+              ...blockEnter.transition,
+              delay: reduceMotion ? 0 : DELAY_CHIP,
+            }}
+          >
             <SeatsTogetherChip count={ticketQty} />
             <SeatHelperText />
-          </div>
+          </MotionDiv>
         </div>
       </div>
 
-      <BottomCTA disabled={!canContinue} onContinue={handleContinue} />
+      <MotionDiv
+        className="shrink-0"
+        style={SECTION_ORIGIN}
+        initial={blockEnter.initial}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{
+          ...blockEnter.transition,
+          delay: reduceMotion ? 0 : DELAY_CTA,
+        }}
+      >
+        <BottomCTA disabled={!canContinue} onContinue={handleContinue} />
+      </MotionDiv>
     </div>
   )
 }

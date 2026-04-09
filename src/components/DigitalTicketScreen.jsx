@@ -25,12 +25,12 @@ function mulberry32(seed) {
 /**
  * Horizontal 1D-style barcode (decorative): vertical light bars, dark gaps — like cinema stubs.
  */
-function BarcodeStrip({ ticketId }) {
+function BarcodeStrip({ ticketId, className = '' }) {
   const bars = useMemo(() => {
     const rand = mulberry32(seedFromString(ticketId))
     const out = []
     let total = 0
-    const maxW = 180
+    const maxW = 168
     while (total < maxW) {
       const w = 1 + Math.floor(rand() * 3)
       out.push(w)
@@ -41,15 +41,15 @@ function BarcodeStrip({ ticketId }) {
 
   return (
     <div
-      className="flex w-full justify-center px-2"
+      className={`flex w-full justify-center ${className}`}
       role="img"
       aria-label="Ticket barcode (illustration)"
     >
-      <div className="flex h-[44px] max-w-[min(100%,200px)] items-stretch justify-center gap-px bg-[#0a0a0c] px-2 py-1">
+      <div className="flex h-[32px] w-full max-w-[200px] items-stretch justify-center gap-px px-1 py-0.5">
         {bars.map((w, i) => (
           <span
             key={i}
-            className="h-full shrink-0 rounded-[0.5px] bg-neutral-100"
+            className="h-full shrink-0 rounded-[0.5px] bg-neutral-100/78"
             style={{ width: w }}
           />
         ))}
@@ -58,8 +58,17 @@ function BarcodeStrip({ ticketId }) {
   )
 }
 
+function formatTicketCode(id) {
+  const s = String(id ?? '')
+    .replace(/\W/g, '')
+    .toUpperCase()
+    .slice(0, 12)
+  if (!s) return '—'
+  return s.replace(/(.{4})/g, '$1 ').trim()
+}
+
 /**
- * Tall poster (~80%), dark stub (~20%) with barcode; ticket silhouette via SVG mask.
+ * Designed artifact: composed hero artwork, metadata strip, structured stub/footer — SVG mask silhouette.
  */
 export default function DigitalTicketScreen({
   posterUrl,
@@ -99,37 +108,148 @@ export default function DigitalTicketScreen({
           rotationFactor={0.35}
         >
           <article
-            className={`grid w-full grid-rows-[minmax(0,4fr)_minmax(0,1fr)] overflow-hidden bg-black ${TICKET_ASPECT_RATIO_CLASS}`}
+            className={`relative isolate grid w-full min-h-0 grid-rows-[minmax(0,1fr)_auto_minmax(128px,auto)] overflow-hidden bg-[#060607] ${TICKET_ASPECT_RATIO_CLASS}`}
+            style={{
+              boxShadow:
+                'inset 0 1px 0 rgba(255,255,255,0.055), inset 0 -1px 0 rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.038), inset 0 0 88px rgba(0,0,0,0.2)',
+            }}
           >
-            <div className="relative min-h-0 min-w-0 overflow-hidden bg-[#1a0a0a]">
+            {/* Continuous lower tonal field: softens the hero → info → footer read */}
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[58%]"
+              style={{
+                background:
+                  'linear-gradient(180deg, transparent 0%, rgba(4,4,6,0.08) 14%, rgba(4,4,6,0.22) 26%, rgba(6,7,10,0.48) 44%, rgba(7,8,11,0.72) 62%, rgba(8,9,12,0.9) 82%, rgba(8,9,12,0.98) 100%)',
+              }}
+              aria-hidden
+            />
+            {/* Object read: edge falloff + crown highlight (restrained) */}
+            <div
+              className="pointer-events-none absolute inset-0 z-[3]"
+              style={{
+                background:
+                  'linear-gradient(90deg, rgba(0,0,0,0.32) 0%, transparent 10%, transparent 90%, rgba(0,0,0,0.32) 100%), linear-gradient(180deg, rgba(255,255,255,0.042) 0%, rgba(255,255,255,0.01) 20%, transparent 45%, rgba(0,0,0,0.08) 100%)',
+              }}
+              aria-hidden
+            />
+
+            {/* Hero: artwork composed for the ticket (crop / scale), not full-bleed poster insert */}
+            <div className="relative z-[1] min-h-0 min-w-0 overflow-hidden bg-[#120808]">
               {posterUrl ? (
                 <img
                   src={posterUrl}
                   alt=""
-                  className="absolute inset-0 h-full w-full object-cover object-top"
+                  className="absolute left-1/2 top-[46%] h-[118%] w-[108%] max-w-none -translate-x-1/2 -translate-y-1/2 object-cover object-[center_20%]"
                 />
               ) : null}
-              <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/80" />
-              <div className="absolute inset-x-0 top-0 p-3 pb-1.5">
-                <h1 className="text-[17px] font-bold leading-tight tracking-[-0.02em] text-white drop-shadow-md">
+              <div
+                className="absolute inset-0"
+                style={{
+                  background:
+                    'linear-gradient(180deg, rgba(0,0,0,0.58) 0%, rgba(0,0,0,0.06) 28%, rgba(0,0,0,0.03) 48%, rgba(0,0,0,0.18) 58%, rgba(0,0,0,0.38) 72%, rgba(0,0,0,0.62) 88%, rgba(0,0,0,0.72) 100%)',
+                }}
+                aria-hidden
+              />
+              {/* Title: typographic only — legibility from shadow + hero fade, no inset panel */}
+              <div className="absolute inset-x-0 bottom-0 z-[1] px-4 pb-4 pt-20">
+                <p className="text-[7px] font-medium uppercase tracking-[0.3em] text-white/44 [text-shadow:0_1px_3px_rgba(0,0,0,0.9),0_0_18px_rgba(0,0,0,0.55)]">
+                  Admit one
+                </p>
+                <h1 className="mt-2 max-w-[98%] text-[17px] font-semibold leading-[1.1] tracking-[-0.03em] text-white [text-shadow:0_2px_32px_rgba(0,0,0,0.82),0_1px_3px_rgba(0,0,0,0.65)]">
                   {movie?.title}
                 </h1>
               </div>
-              <div className="absolute inset-x-0 bottom-0 p-3 pt-8">
-                {whenLine ? (
-                  <p className="text-[11px] font-medium text-white/78">{whenLine}</p>
-                ) : null}
-                {detailLine ? (
-                  <p className="mt-0.5 text-[10px] font-medium text-white/52">{detailLine}</p>
-                ) : null}
-              </div>
             </div>
 
-            <div className="flex min-h-[76px] flex-col items-center justify-center gap-1.5 border-t border-white/[0.06] bg-[#141416] px-2.5 py-2">
-              <BarcodeStrip ticketId={ticketId} />
-              <p className="font-mono text-[9px] tracking-wide text-[#6b6b70]">
-                {ticketId.slice(0, 10).toUpperCase()}
-              </p>
+            {/* Information break: feathered into hero + footer for one continuous read */}
+            <div
+              className="relative z-[2] min-h-[40px] border-t border-white/[0.028] px-4 py-3.5"
+              style={{
+                background:
+                  'linear-gradient(180deg, rgba(5,6,9,0.28) 0%, rgba(6,7,10,0.58) 38%, rgba(7,8,11,0.82) 100%)',
+              }}
+            >
+              {whenLine ? (
+                <p className="text-[11px] font-medium leading-snug tracking-[-0.012em] text-white/92 [text-shadow:0_1px_10px_rgba(0,0,0,0.45)]">
+                  {whenLine}
+                </p>
+              ) : null}
+              {detailLine ? (
+                <p className="mt-2 text-[10px] font-medium leading-snug tracking-[-0.01em] text-white/56 [text-shadow:0_1px_8px_rgba(0,0,0,0.35)]">
+                  {detailLine}
+                </p>
+              ) : null}
+            </div>
+
+            {/* Stub / barcode: calmer footer, barcode woven in — not a dropped-in module */}
+            <div
+              className="relative z-[2] flex min-h-0 flex-col border-t border-white/[0.028] px-4 pb-5 pt-4"
+              style={{
+                background:
+                  'linear-gradient(180deg, rgba(7,8,11,0.42) 0%, rgba(8,9,13,0.78) 32%, rgba(9,10,14,0.95) 68%, #0a0b10 100%)',
+              }}
+            >
+              <div
+                className="pointer-events-none absolute left-[9%] right-[9%] top-0 h-px -translate-y-px opacity-90"
+                style={{
+                  background:
+                    'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 14%, rgba(255,255,255,0.14) 50%, rgba(255,255,255,0.06) 86%, transparent 100%)',
+                }}
+                aria-hidden
+              />
+              <div
+                className="pointer-events-none absolute left-[12%] right-[12%] top-0 h-[3px] -translate-y-[5px] opacity-[0.28]"
+                style={{
+                  background:
+                    'repeating-linear-gradient(90deg, transparent 0px, transparent 5px, rgba(255,255,255,0.06) 5px, rgba(255,255,255,0.06) 6px)',
+                }}
+                aria-hidden
+              />
+
+              <div className="mb-4 flex items-baseline justify-between gap-3">
+                <span className="text-[7px] font-medium uppercase tracking-[0.22em] text-white/42">
+                  Scan at entry
+                </span>
+                <span className="text-[7px] font-medium uppercase tracking-[0.18em] text-white/34">
+                  E-ticket
+                </span>
+              </div>
+
+              <div
+                className="rounded-[2px] py-4"
+                style={{
+                  background:
+                    'linear-gradient(180deg, rgba(255,255,255,0.038) 0%, rgba(255,255,255,0.022) 50%, transparent 100%)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.055)',
+                }}
+              >
+                <div
+                  className="mx-1 h-px opacity-75"
+                  style={{
+                    background:
+                      'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.09) 20%, rgba(255,255,255,0.09) 80%, transparent 100%)',
+                  }}
+                  aria-hidden
+                />
+                <BarcodeStrip ticketId={ticketId} className="pt-3.5" />
+                <div
+                  className="mx-1 mt-3.5 h-px opacity-55"
+                  style={{
+                    background:
+                      'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.07) 25%, rgba(255,255,255,0.07) 75%, transparent 100%)',
+                  }}
+                  aria-hidden
+                />
+              </div>
+
+              <div className="mt-5 flex flex-col items-center gap-1.5">
+                <span className="text-[7px] font-medium uppercase tracking-[0.2em] text-white/38">
+                  Confirmation
+                </span>
+                <p className="font-mono text-[9.5px] font-medium tracking-[0.15em] text-white/52">
+                  {formatTicketCode(ticketId)}
+                </p>
+              </div>
             </div>
           </article>
         </InteractiveCard>

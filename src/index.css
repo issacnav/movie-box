@@ -209,6 +209,20 @@ body:has(.seat-fullscreen)::-webkit-scrollbar {
   animation-delay: 0.4s;
 }
 
+/* Seat map: chair cascade (StaggeredAnimation + react-transition-group appear) */
+.seat-stagger-appear {
+  opacity: 0;
+  transform: translate3d(0, 3px, 0);
+}
+
+.seat-stagger-appear-active {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition:
+    opacity 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.44s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 /* Booking time panel + mascots: respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .ticket-mascot-reveal {
@@ -243,5 +257,12 @@ body:has(.seat-fullscreen)::-webkit-scrollbar {
   .ticket-generating-pulse-dot {
     animation: none;
     opacity: 0.7;
+  }
+
+  .seat-stagger-appear,
+  .seat-stagger-appear-active {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
   }
 }

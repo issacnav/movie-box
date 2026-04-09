@@ -1,6 +1,11 @@
 import { Play } from 'lucide-react'
 
-export default function ActionButtons({ onBuyTickets }) {
+export default function ActionButtons({ onBuyTickets, trailerUrl }) {
+  const handlePlayTrailer = () => {
+    if (!trailerUrl) return
+    window.open(trailerUrl, '_blank', 'noopener,noreferrer')
+  }
+
   return (
     <div className="flex items-center justify-center gap-3 mt-8">
       {/* Buy Tickets */}
@@ -13,6 +18,8 @@ export default function ActionButtons({ onBuyTickets }) {
 
       {/* Play Trailer */}
       <button
+        type="button"
+        onClick={handlePlayTrailer}
         className="w-[48px] h-[48px] shrink-0 rounded-full bg-dark-surface hover:bg-dark-surface/80 transition-colors flex items-center justify-center cursor-pointer"
         aria-label="Play trailer"
       >

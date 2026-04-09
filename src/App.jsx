@@ -1,4 +1,7 @@
 import { useState, useRef, useCallback, useLayoutEffect, useMemo, useEffect } from 'react'
+import { motion } from 'framer-motion'
+
+const MotionDiv = motion.div
 import TopNav from './components/TopNav'
 import MoviePoster from './components/MoviePoster'
 import MovieInfo from './components/MovieInfo'
@@ -20,6 +23,7 @@ const MOVIE = {
   duration: '140 min',
   imdbRating: '8.6',
   previewVideoUrl: '/dune.mp4',
+  trailerYoutubeUrl: 'https://www.youtube.com/watch?v=3_9vCamtuPY',
 }
 
 function relativeRect(el, container) {
@@ -65,6 +69,8 @@ function App() {
   const [bookingWhenLine, setBookingWhenLine] = useState(null)
   const [bookingScreenNumber, setBookingScreenNumber] = useState(2)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
+  /** Keeps ticket screen mounted briefly while seats crossfades in (screen 2 → 3). */
+  const [ticketsExitAfterContinue, setTicketsExitAfterContinue] = useState(false)
   const [issuedTicketId, setIssuedTicketId] = useState(() => {
     if (!ticketLoaderPreviewFromSearch()) return null
     return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -114,10 +120,12 @@ function App() {
   const handleTicketsBack = useCallback(() => setScreen('booking'), [])
   const handleTicketsContinue = useCallback((count) => {
     setTicketQty(count)
+    setTicketsExitAfterContinue(true)
     setScreen('seats')
   }, [])
   const handleSeatsBack = useCallback(() => {
     setCheckoutOpen(false)
+    setTicketsExitAfterContinue(false)
     setScreen('tickets')
   }, [])
   const handleSeatsContinue = useCallback((payload) => {
@@ -266,6 +274,16 @@ function App() {
     }
   }, [screen])
 
+  useEffect(() => {
+    if (screen !== 'seats') setTicketsExitAfterContinue(false)
+  }, [screen])
+
+  useEffect(() => {
+    if (!ticketsExitAfterContinue || screen !== 'seats') return undefined
+    const id = window.setTimeout(() => setTicketsExitAfterContinue(false), 420)
+    return () => window.clearTimeout(id)
+  }, [screen, ticketsExitAfterContinue])
+
   return (
     <div
       ref={containerRef}
@@ -289,7 +307,10 @@ function App() {
             <MoviePoster posterUrl={POSTER_URL} title={MOVIE.title} />
           </div>
           <MovieInfo {...MOVIE} />
-          <ActionButtons onBuyTickets={handleBuyTickets} />
+          <ActionButtons
+            onBuyTickets={handleBuyTickets}
+            trailerUrl={MOVIE.trailerYoutubeUrl}
+          />
           <BottomNav />
         </div>
       )}
@@ -309,51 +330,71 @@ function App() {
         </div>
       )}
 
-      {/* Tickets: fixed to viewport so layout never collapses when home/booking unmount */}
-      {isTickets && (
+      {/* Tickets + seats: one shell + shared bg; crossfade on Continue so step 2 → 3 feels continuous */}
+      {(isTickets || isSeats || ticketsExitAfterContinue) && (
         <div
-          className="ticket-fullscreen fixed inset-0 z-[60] flex h-[100dvh] max-h-[100dvh] w-full justify-center overflow-hidden overscroll-none bg-[#0D0D0F]"
+          className="ticket-fullscreen seat-fullscreen fixed inset-0 z-[60] flex h-[100dvh] max-h-[100dvh] w-full justify-center overflow-hidden overscroll-none bg-[#0D0D0F]"
           style={{ paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
         >
-          <div className="flex h-full min-h-0 w-full max-w-[430px] flex-col overflow-hidden">
-            <TicketScreen
-              posterUrl={POSTER_URL}
-              movie={MOVIE}
-              onBack={handleTicketsBack}
-              onContinue={handleTicketsContinue}
-              active={isTickets}
-            />
-          </div>
-        </div>
-      )}
-
-      {isSeats && (
-        <div
-          className="seat-fullscreen ticket-fullscreen fixed inset-0 z-[60] flex h-[100dvh] max-h-[100dvh] w-full justify-center overflow-hidden overscroll-none bg-[#050506]"
-          style={{ paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
-        >
-          <div className="relative flex h-full min-h-0 w-full max-w-[430px] flex-col overflow-hidden">
-            <SeatSelectorScreen
-              movie={MOVIE}
-              ticketQty={ticketQty}
-              onBack={handleSeatsBack}
-              onContinue={handleSeatsContinue}
-              active={isSeats}
-            />
-            <CheckoutSheet
-              open={checkoutOpen}
-              onClose={handleCheckoutClose}
-              onPay={handleCheckoutPay}
-              posterUrl={POSTER_URL}
-              movie={MOVIE}
-              whenLine={bookingWhenLine ?? 'Pick a showtime'}
-              detailLine={
-                seatSummary
-                  ? `Screen ${bookingScreenNumber} · ${seatSummary}`
-                  : `Screen ${bookingScreenNumber}`
-              }
-              totalFormatted={checkoutTotalFormatted}
-            />
+          <div className="relative h-full min-h-0 w-full max-w-[430px] flex-1 overflow-hidden">
+            {(isTickets || ticketsExitAfterContinue) && (
+              <MotionDiv
+                className="absolute inset-0 z-10 flex min-h-0 flex-col overflow-hidden"
+                initial={false}
+                animate={{
+                  opacity: isTickets ? 1 : 0,
+                }}
+                transition={{
+                  duration: 0.3,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+                style={{
+                  pointerEvents: isTickets && !isSeats ? 'auto' : 'none',
+                }}
+              >
+                <TicketScreen
+                  posterUrl={POSTER_URL}
+                  movie={MOVIE}
+                  onBack={handleTicketsBack}
+                  onContinue={handleTicketsContinue}
+                  active={isTickets && !isSeats}
+                />
+              </MotionDiv>
+            )}
+            {isSeats && (
+              <MotionDiv
+                className="absolute inset-0 z-20 flex min-h-0 flex-col overflow-hidden"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{
+                  duration: 0.2,
+                  delay: 0,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+              >
+                <SeatSelectorScreen
+                  movie={MOVIE}
+                  ticketQty={ticketQty}
+                  onBack={handleSeatsBack}
+                  onContinue={handleSeatsContinue}
+                  active={isSeats}
+                />
+                <CheckoutSheet
+                  open={checkoutOpen}
+                  onClose={handleCheckoutClose}
+                  onPay={handleCheckoutPay}
+                  posterUrl={POSTER_URL}
+                  movie={MOVIE}
+                  whenLine={bookingWhenLine ?? 'Pick a showtime'}
+                  detailLine={
+                    seatSummary
+                      ? `Screen ${bookingScreenNumber} · ${seatSummary}`
+                      : `Screen ${bookingScreenNumber}`
+                  }
+                  totalFormatted={checkoutTotalFormatted}
+                />
+              </MotionDiv>
+            )}
           </div>
         </div>
       )}

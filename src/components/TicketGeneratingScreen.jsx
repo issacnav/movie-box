@@ -61,11 +61,11 @@ export default function TicketGeneratingScreen() {
               aria-hidden
             />
 
-            {/* Stub / barcode zone: separate tonal block */}
+            {/* Stub / barcode zone: separate tonal block (aligns ~footer start on DigitalTicketScreen) */}
             <div
               className="pointer-events-none absolute inset-x-0 bottom-0"
               style={{
-                top: '74%',
+                top: '78%',
                 background:
                   'linear-gradient(180deg, rgba(0,0,0,0.28) 0%, rgba(12,13,18,0.92) 22%, #0D0E14 72%, #0B0C11 100%)',
                 boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.055)',
@@ -77,7 +77,7 @@ export default function TicketGeneratingScreen() {
             <div
               className="pointer-events-none absolute left-[10%] right-[10%] h-px"
               style={{
-                top: '74%',
+                top: '78%',
                 background:
                   'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 15%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.08) 85%, transparent 100%)',
               }}
@@ -86,7 +86,7 @@ export default function TicketGeneratingScreen() {
             <div
               className="pointer-events-none absolute left-[14%] right-[14%]"
               style={{
-                top: 'calc(74% - 2px)',
+                top: 'calc(78% - 2px)',
                 height: '3px',
                 background:
                   'repeating-linear-gradient(90deg, transparent 0px, transparent 5px, rgba(255,255,255,0.06) 5px, rgba(255,255,255,0.06) 6px)',
