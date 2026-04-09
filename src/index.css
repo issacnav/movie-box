@@ -99,6 +99,116 @@ body:has(.seat-fullscreen)::-webkit-scrollbar {
   appearance: none !important;
 }
 
+/* Ticket generating: atmospheric wave — vertical sweep + slight drift (alive, not a static stripe) */
+@keyframes ticket-loader-wave-move {
+  0% {
+    transform: translateY(96%) translateX(-2.2%) scaleX(1.04);
+  }
+  100% {
+    transform: translateY(-96%) translateX(1.8%) scaleX(0.96);
+  }
+}
+
+@keyframes ticket-loader-wave-breathe {
+  0%,
+  100% {
+    opacity: 0.42;
+  }
+  50% {
+    opacity: 0.78;
+  }
+}
+
+@keyframes ticket-loader-wave-core-breathe {
+  0%,
+  100% {
+    opacity: 0.52;
+    filter: blur(13px);
+  }
+  50% {
+    opacity: 0.92;
+    filter: blur(17px);
+  }
+}
+
+/* Masked “wake” band: brighter dots only where the soft window overlaps */
+@keyframes ticket-loader-dot-reveal {
+  0% {
+    -webkit-mask-position: 50% 195%;
+    mask-position: 50% 195%;
+  }
+  100% {
+    -webkit-mask-position: 50% -195%;
+    mask-position: 50% -195%;
+  }
+}
+
+.ticket-loader-wave-haze {
+  animation:
+    ticket-loader-wave-move 3.5s cubic-bezier(0.42, 0, 0.58, 1) infinite,
+    ticket-loader-wave-breathe 2.8s ease-in-out infinite;
+  animation-delay: 0s, 0.35s;
+  will-change: transform, opacity;
+}
+
+.ticket-loader-wave-core {
+  animation:
+    ticket-loader-wave-move 3.5s cubic-bezier(0.42, 0, 0.58, 1) infinite,
+    ticket-loader-wave-core-breathe 2.4s ease-in-out infinite;
+  animation-delay: -0.45s, 0s;
+  will-change: transform, opacity, filter;
+}
+
+.ticket-loader-dot-reveal-mask {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 0, 0, 0.25) 18%,
+    #000 38%,
+    #000 48%,
+    rgba(0, 0, 0, 0.25) 62%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 0, 0, 0.25) 18%,
+    #000 38%,
+    #000 48%,
+    rgba(0, 0, 0, 0.25) 62%,
+    transparent 100%
+  );
+  -webkit-mask-size: 100% 52%;
+  mask-size: 100% 52%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  animation: ticket-loader-dot-reveal 3.5s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+  will-change: mask-position;
+}
+
+/* Footer: calm pulse instead of spinner */
+@keyframes ticket-generating-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.ticket-generating-pulse-dot {
+  animation: ticket-generating-pulse 1.8s ease-in-out infinite;
+}
+
+.ticket-generating-pulse-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.ticket-generating-pulse-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
 /* Booking time panel + mascots: respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .ticket-mascot-reveal {
@@ -114,5 +224,24 @@ body:has(.seat-fullscreen)::-webkit-scrollbar {
   .booking-time-panel-grid,
   .booking-time-panel-inner {
     transition: none !important;
+  }
+
+  .ticket-loader-wave-haze,
+  .ticket-loader-wave-core {
+    animation: none;
+    transform: translateY(0);
+    opacity: 0.55;
+    filter: blur(16px);
+  }
+
+  .ticket-loader-dot-reveal-mask {
+    animation: none;
+    -webkit-mask-position: 50% 0%;
+    mask-position: 50% 0%;
+  }
+
+  .ticket-generating-pulse-dot {
+    animation: none;
+    opacity: 0.7;
   }
 }

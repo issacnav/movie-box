@@ -3,23 +3,24 @@ import { X, ChevronDown } from 'lucide-react'
 import ShowtimeGrid from './ShowtimeGrid'
 import MiniMovieCardRow from './MiniMovieCardRow.jsx'
 
+/** Opening week around US release Fri Dec 18, 2026 (Dune: Part Three). */
 const DAYS = [
-  { date: 11, day: 'T' },
-  { date: 12, day: 'W' },
-  { date: 13, day: 'T' },
-  { date: 14, day: 'F' },
+  { date: 17, day: 'Thu' },
+  { date: 18, day: 'Fri' },
+  { date: 19, day: 'Sat' },
+  { date: 20, day: 'Sun' },
 ]
 
-/** Demo labels for checkout — aligned with date chips (April). */
+/** Checkout / ticket copy — aligned with date chips (Dec 2026). */
 const DATE_LINE_BY_DATE = {
-  11: 'Tue, Apr 11',
-  12: 'Wed, Apr 12',
-  13: 'Thu, Apr 13',
-  14: 'Fri, Apr 14',
+  17: 'Thu, Dec 17, 2026',
+  18: 'Fri, Dec 18, 2026',
+  19: 'Sat, Dec 19, 2026',
+  20: 'Sun, Dec 20, 2026',
 }
 
 /** Dates that open the showtime panel (above Continue) */
-const DATES_WITH_SHOWTIMES = [11, 12, 13]
+const DATES_WITH_SHOWTIMES = [17, 18, 19]
 
 const PANEL_MS = 280
 
@@ -136,7 +137,7 @@ export default function BookingScreen({
         </div>
         <div className="flex items-center gap-3 mt-2">
           {DAYS.map((d) => (
-            <span key={d.day + d.date} className="w-[60px] text-center text-gray-text text-[13px]">
+            <span key={d.day + d.date} className="w-[60px] text-center text-gray-text text-[11px]">
               {d.day}
             </span>
           ))}

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useLayoutEffect, useMemo } from 'react'
+import { useState, useRef, useCallback, useLayoutEffect, useMemo, useEffect } from 'react'
 import TopNav from './components/TopNav'
 import MoviePoster from './components/MoviePoster'
 import MovieInfo from './components/MovieInfo'
@@ -8,14 +8,16 @@ import BookingScreen from './components/BookingScreen'
 import TicketScreen from './components/TicketScreen'
 import SeatSelectorScreen from './components/SeatSelectorScreen'
 import CheckoutSheet from './components/CheckoutSheet'
+import TicketGeneratingScreen from './components/TicketGeneratingScreen'
+import DigitalTicketScreen from './components/DigitalTicketScreen'
 
 const POSTER_URL = '/poster.jpg'
 
 const MOVIE = {
   title: 'Dune 3',
-  year: '2027',
+  year: '2026',
   genre: 'Sci-Fi',
-  duration: '165 min',
+  duration: '140 min',
   imdbRating: '8.6',
   previewVideoUrl: '/dune.mp4',
 }
@@ -46,17 +48,33 @@ function morphTiming() {
   return { duration: MORPH_DURATION, fallbackMs: MORPH_FALLBACK_MS }
 }
 
+/** `?loader=1` — opens ticket generating UI (dev preview / QA; works in any build mode). */
+function ticketLoaderPreviewFromSearch() {
+  return (
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('loader') === '1'
+  )
+}
+
 function App() {
-  const [screen, setScreen] = useState('home')
+  const [screen, setScreen] = useState(() =>
+    ticketLoaderPreviewFromSearch() ? 'ticket-generating' : 'home',
+  )
   const [ticketQty, setTicketQty] = useState(1)
   const [seatSummary, setSeatSummary] = useState(null)
   const [bookingWhenLine, setBookingWhenLine] = useState(null)
   const [bookingScreenNumber, setBookingScreenNumber] = useState(2)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const [issuedTicketId, setIssuedTicketId] = useState(() => {
+    if (!ticketLoaderPreviewFromSearch()) return null
+    return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `TKT-${Date.now()}`
+  })
 
   const checkoutTotalFormatted = useMemo(() => {
-    const perSeat = 21.99 / 3
-    return `$${(perSeat * ticketQty).toFixed(2)}`
+    const pricePerTicket = 25
+    return `$${(pricePerTicket * ticketQty).toFixed(2)}`
   }, [ticketQty])
   const containerRef = useRef(null)
   const posterCardRef = useRef(null)
@@ -111,7 +129,30 @@ function App() {
 
   const handleCheckoutPay = useCallback(() => {
     setCheckoutOpen(false)
-    setScreen('confirmation')
+    const id =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `TKT-${Date.now()}`
+    setIssuedTicketId(id)
+    setScreen('ticket-generating')
+  }, [])
+
+  useEffect(() => {
+    if (screen !== 'ticket-generating') return
+    const reduced =
+      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const ms = reduced ? 1000 : 3000
+    const t = window.setTimeout(() => setScreen('ticket-ready'), ms)
+    return () => window.clearTimeout(t)
+  }, [screen])
+
+  const handleTicketDone = useCallback(() => {
+    setSeatSummary(null)
+    setBookingWhenLine(null)
+    setBookingScreenNumber(2)
+    setCheckoutOpen(false)
+    setIssuedTicketId(null)
+    setScreen('home')
   }, [])
 
   // Forward morph
@@ -204,7 +245,8 @@ function App() {
   const bookingContentLive = screen === 'booking'
   const isTickets = screen === 'tickets'
   const isSeats = screen === 'seats'
-  const isConfirmation = screen === 'confirmation'
+  const isTicketGenerating = screen === 'ticket-generating'
+  const isTicketReady = screen === 'ticket-ready'
 
   /**
    * Keep the home layer mounted while booking (and other full-screen flows except tickets).
@@ -316,32 +358,21 @@ function App() {
         </div>
       )}
 
-      {isConfirmation && (
-        <div
-          className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-4 px-8 text-center bg-[#0D0D0F] min-h-[100dvh]"
-          style={{ paddingLeft: 'max(2rem, env(safe-area-inset-left))', paddingRight: 'max(2rem, env(safe-area-inset-right))' }}
-        >
-          <p className="text-white text-[22px] font-bold">You&apos;re set</p>
-          <p className="text-gray-text text-[15px] max-w-[280px]">
-            {ticketQty} ticket{ticketQty === 1 ? '' : 's'} for {MOVIE.title}
-          </p>
-          {seatSummary && (
-            <p className="text-gray-text text-[14px] max-w-[280px] -mt-1">{seatSummary}</p>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              setSeatSummary(null)
-              setBookingWhenLine(null)
-              setBookingScreenNumber(2)
-              setCheckoutOpen(false)
-              setScreen('home')
-            }}
-            className="mt-2 h-[48px] px-8 rounded-full bg-yellow text-dark text-[15px] font-semibold border-none cursor-pointer"
-          >
-            Back to movies
-          </button>
-        </div>
+      {isTicketGenerating && <TicketGeneratingScreen />}
+
+      {isTicketReady && issuedTicketId && (
+        <DigitalTicketScreen
+          posterUrl={POSTER_URL}
+          movie={MOVIE}
+          whenLine={bookingWhenLine ?? ''}
+          detailLine={
+            seatSummary
+              ? `Screen ${bookingScreenNumber} · ${seatSummary}`
+              : `Screen ${bookingScreenNumber}`
+          }
+          ticketId={issuedTicketId}
+          onDone={handleTicketDone}
+        />
       )}
 
       {/* Morph overlay */}
