@@ -16,15 +16,16 @@ export default function TicketGeneratingScreen() {
 
   return (
     <div
-      className="ticket-fullscreen fixed inset-0 z-[70] flex min-h-[100dvh] flex-col bg-black px-5 py-8"
+      className="ticket-fullscreen fixed inset-0 z-[70] flex h-[100dvh] max-h-[100dvh] min-h-0 w-full min-w-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain bg-black py-5 sm:py-8"
       style={{
-        paddingLeft: 'max(1.25rem, env(safe-area-inset-left))',
-        paddingRight: 'max(1.25rem, env(safe-area-inset-right))',
-        paddingTop: 'max(2rem, env(safe-area-inset-top))',
-        paddingBottom: 'max(2rem, env(safe-area-inset-bottom))',
+        paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
+        paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
+        paddingTop: 'max(1rem, env(safe-area-inset-top, 0px))',
+        paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))',
+        boxSizing: 'border-box',
       }}
     >
-      <div className="flex flex-1 flex-col items-center justify-center">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center">
         <div
           className={`relative w-full ${TICKET_MAX_WIDTH_CLASS}`}
           style={{
@@ -181,9 +182,9 @@ export default function TicketGeneratingScreen() {
         </div>
       </div>
 
-      <div className="flex shrink-0 justify-center pb-2">
-        <div className="inline-flex items-center gap-3 rounded-full bg-[#1A1A1E] px-5 py-3">
-          <span className="text-[15px] font-medium text-white/90">Generating your ticket</span>
+      <div className="flex shrink-0 justify-center pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
+        <div className="inline-flex max-w-[min(100%,calc(100vw-2rem))] items-center gap-2 rounded-full bg-[#1A1A1E] px-4 py-2.5 sm:gap-3 sm:px-5 sm:py-3">
+          <span className="text-[13px] font-medium text-white/90 sm:text-[15px]">Generating your ticket</span>
           <span className="flex items-center gap-1.5" aria-hidden>
             <span className="ticket-generating-pulse-dot h-1 w-1 rounded-full bg-white/50" />
             <span className="ticket-generating-pulse-dot h-1 w-1 rounded-full bg-white/50" />

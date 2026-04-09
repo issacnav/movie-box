@@ -12,6 +12,7 @@ import MovieInfo from './components/MovieInfo'
 import ActionButtons from './components/ActionButtons'
 import BottomNav from './components/BottomNav'
 import { CLASSIC_HOME_MOVIE, FEATURED_MOVIES } from './data/featuredMovies'
+import { genresForCarousel, firstMovieIndexForGenre } from './constants/theatreGenres'
 import BookingScreen from './components/BookingScreen'
 import TicketScreen from './components/TicketScreen'
 import SeatSelectorScreen from './components/SeatSelectorScreen'
@@ -60,7 +61,6 @@ function App() {
   /** Theatre: follows ring front card during drag; keeps text in sync with posters. */
   const [theatreDisplayIndex, setTheatreDisplayIndex] = useState(0)
   const [homeCategoryIndex, setHomeCategoryIndex] = useState(0)
-  const [homeGenreIndex, setHomeGenreIndex] = useState(0)
 
   const handleTheatreSnapIndex = useCallback((idx) => {
     setSelectedMovieIndex(idx)
@@ -78,6 +78,24 @@ function App() {
     }
     return CLASSIC_HOME_MOVIE
   }, [homeTab, theatreDisplayIndex])
+
+  const theatreGenres = useMemo(() => genresForCarousel(FEATURED_MOVIES), [])
+
+  const theatreGenreIndex = useMemo(() => {
+    if (!theatreGenres.length) return 0
+    const idx = theatreGenres.indexOf(activeHomeMovie.genre)
+    return idx >= 0 ? idx : 0
+  }, [theatreGenres, activeHomeMovie.genre])
+
+  const handleTheatreGenreSelect = useCallback(
+    (i) => {
+      const label = theatreGenres[i]
+      if (!label) return
+      const movieIdx = firstMovieIndexForGenre(FEATURED_MOVIES, label)
+      if (movieIdx >= 0) setSelectedMovieIndex(movieIdx)
+    },
+    [theatreGenres],
+  )
 
   const theatreMetaTransition = useMemo(() => {
     const reduced =
@@ -314,86 +332,99 @@ function App() {
   return (
     <div
       ref={containerRef}
-      className="relative mx-auto flex h-[100dvh] max-h-[100dvh] min-h-0 max-w-[430px] flex-col overflow-x-clip overflow-hidden bg-dark"
+      className="relative mx-auto flex h-[100dvh] max-h-[100dvh] min-h-0 w-full min-w-0 max-w-[430px] flex-1 flex-col overflow-x-clip overflow-hidden bg-dark pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]"
     >
       {/* Home screen — DOM stays warm under booking/confirmation; only opacity toggles */}
       {homeLayerMounted && (
-        <div
-          className={`flex min-h-0 flex-1 flex-col pb-24 ${homeTab === 'home' ? 'overflow-y-auto' : 'overflow-hidden'}`}
-          style={{
-            opacity: homeLayerVisible ? 1 : 0,
-            pointerEvents: homeLayerInteractive ? 'auto' : 'none',
-            transition: skipHomeOpacityTransition
-              ? 'none'
-              : `opacity ${homeFadeDuration} ${MORPH_EASE}`,
-          }}
-          aria-hidden={!homeLayerInteractive}
-        >
-          {homeTab === 'home' ? (
-            <>
-              <TopNav />
-              <div ref={posterCardRef}>
-                <MoviePoster posterUrl={CLASSIC_HOME_MOVIE.posterUrl} title={CLASSIC_HOME_MOVIE.title} />
-              </div>
-              <MovieInfo {...CLASSIC_HOME_MOVIE} />
-              <ActionButtons
-                onBuyTickets={handleBuyTickets}
-                trailerUrl={CLASSIC_HOME_MOVIE.trailerYoutubeUrl}
-              />
-            </>
-          ) : (
-            <>
-              <TheatreTopNav onMenuPress={() => {}} onSearchPress={() => {}} />
-              <HomeFeedHeader
-                categoryIndex={homeCategoryIndex}
-                onCategoryChange={setHomeCategoryIndex}
-                genreIndex={homeGenreIndex}
-                onGenreChange={setHomeGenreIndex}
-              />
-              <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden py-1">
-                <PosterRing3D
-                  movies={FEATURED_MOVIES}
-                  activeIndex={selectedMovieIndex}
-                  onActiveIndexChange={handleTheatreSnapIndex}
-                  onLiveFrontIndexChange={setTheatreDisplayIndex}
-                  posterCardRef={posterCardRef}
-                />
-              </div>
-              <AnimatePresence initial={false} mode="popLayout">
-                <motion.div
-                  key={activeHomeMovie.id}
-                  className="flex shrink-0 flex-col items-center gap-2 px-4 pt-1"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={theatreMetaTransition}
-                >
-                  <h1 className="text-center font-[family-name:var(--font-display)] text-[21px] font-semibold leading-[1.25] tracking-tight text-white">
-                    {activeHomeMovie.title}
-                  </h1>
-                  <div className="flex h-5 items-center justify-center gap-1.5 text-white">
-                    <Star
-                      className="size-4 shrink-0 fill-yellow text-yellow"
-                      aria-hidden
-                      strokeWidth={0}
-                    />
-                    <span className="text-[15px] font-medium tabular-nums leading-none">
-                      {activeHomeMovie.imdbRating}
-                    </span>
-                  </div>
-                  <MovieInfo {...activeHomeMovie} showImdbRating={false} variant="theatre" />
-                </motion.div>
-              </AnimatePresence>
-              <div className="shrink-0">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div
+            className={`flex min-h-0 min-w-0 flex-1 flex-col pb-[calc(6.25rem+env(safe-area-inset-bottom,0px))] ${homeTab === 'home' ? 'hide-scrollbar overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]' : 'overflow-hidden'}`}
+            style={{
+              opacity: homeLayerVisible ? 1 : 0,
+              pointerEvents: homeLayerInteractive ? 'auto' : 'none',
+              transition: skipHomeOpacityTransition
+                ? 'none'
+                : `opacity ${homeFadeDuration} ${MORPH_EASE}`,
+            }}
+            aria-hidden={!homeLayerInteractive}
+          >
+            {homeTab === 'home' ? (
+              <>
+                <TopNav />
+                <div ref={posterCardRef}>
+                  <MoviePoster posterUrl={CLASSIC_HOME_MOVIE.posterUrl} title={CLASSIC_HOME_MOVIE.title} />
+                </div>
+                <MovieInfo {...CLASSIC_HOME_MOVIE} />
                 <ActionButtons
                   onBuyTickets={handleBuyTickets}
-                  trailerUrl={activeHomeMovie.trailerYoutubeUrl}
-                  compact
+                  trailerUrl={CLASSIC_HOME_MOVIE.trailerYoutubeUrl}
                 />
+              </>
+            ) : (
+              <div className="relative flex min-h-0 flex-1 flex-col bg-gradient-to-b from-[#08080c] via-[#0c0c10] to-dark">
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-[42%] h-[min(52vh,420px)] -translate-y-1/2 bg-[radial-gradient(ellipse_72%_58%_at_50%_50%,rgba(245,197,24,0.07)_0%,transparent_68%)] opacity-90"
+                  aria-hidden
+                />
+                <TheatreTopNav onMenuPress={() => {}} onSearchPress={() => {}} />
+                <HomeFeedHeader
+                  categoryIndex={homeCategoryIndex}
+                  onCategoryChange={setHomeCategoryIndex}
+                  genres={theatreGenres}
+                  genreIndex={theatreGenreIndex}
+                  onGenreChange={handleTheatreGenreSelect}
+                />
+                <div className="relative flex min-h-0 flex-1 flex-col justify-center overflow-hidden pt-1 pb-0">
+                  <PosterRing3D
+                    movies={FEATURED_MOVIES}
+                    activeIndex={selectedMovieIndex}
+                    onActiveIndexChange={handleTheatreSnapIndex}
+                    onLiveFrontIndexChange={setTheatreDisplayIndex}
+                    posterCardRef={posterCardRef}
+                  />
+                </div>
+                <AnimatePresence initial={false} mode="popLayout">
+                  <motion.div
+                    key={activeHomeMovie.id}
+                    className="relative flex shrink-0 flex-col items-center gap-1 px-5 pt-2"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={theatreMetaTransition}
+                  >
+                    <h1 className="max-w-[min(100%,20rem)] text-center font-[family-name:var(--font-display)] text-[22px] font-semibold leading-[1.2] tracking-[-0.025em] text-white">
+                      {activeHomeMovie.title}
+                    </h1>
+                    <div
+                      className="flex items-center justify-center gap-1 text-white/92"
+                      role="img"
+                      aria-label={`Rating ${activeHomeMovie.imdbRating} out of 10`}
+                    >
+                      <Star
+                        className="size-[15px] shrink-0 fill-yellow text-yellow drop-shadow-[0_0_10px_rgba(245,197,24,0.35)]"
+                        aria-hidden
+                        strokeWidth={0}
+                      />
+                      <span className="text-[14px] font-medium tabular-nums tracking-[-0.02em]">
+                        {activeHomeMovie.imdbRating}
+                      </span>
+                    </div>
+                    <MovieInfo {...activeHomeMovie} showImdbRating={false} variant="theatre" />
+                  </motion.div>
+                </AnimatePresence>
+                <div className="relative shrink-0 pb-1">
+                  <ActionButtons
+                    onBuyTickets={handleBuyTickets}
+                    trailerUrl={activeHomeMovie.trailerYoutubeUrl}
+                    compact
+                  />
+                </div>
               </div>
-            </>
+            )}
+          </div>
+          {screen === 'home' && (
+            <BottomNav activeTab={homeTab} onTabChange={setHomeTab} />
           )}
-          <BottomNav activeTab={homeTab} onTabChange={setHomeTab} />
         </div>
       )}
 
@@ -415,10 +446,13 @@ function App() {
       {/* Tickets + seats: one shell + shared bg; crossfade on Continue so step 2 → 3 feels continuous */}
       {(isTickets || isSeats || ticketsExitAfterContinue) && (
         <div
-          className="ticket-fullscreen seat-fullscreen fixed inset-0 z-[60] flex h-[100dvh] max-h-[100dvh] w-full justify-center overflow-hidden overscroll-none bg-[#0D0D0F]"
-          style={{ paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
+          className="ticket-fullscreen seat-fullscreen fixed inset-0 z-[60] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 justify-center overflow-hidden overscroll-none bg-[#0D0D0F]"
+          style={{
+            paddingLeft: 'env(safe-area-inset-left, 0px)',
+            paddingRight: 'env(safe-area-inset-right, 0px)',
+          }}
         >
-          <div className="relative h-full min-h-0 w-full max-w-[430px] flex-1 overflow-hidden">
+          <div className="relative h-full min-h-0 w-full min-w-0 max-w-[430px] flex-1 overflow-hidden">
             {(isTickets || ticketsExitAfterContinue) && (
               <MotionDiv
                 className="absolute inset-0 z-10 flex min-h-0 flex-col overflow-hidden"

@@ -111,10 +111,10 @@ export default function CheckoutSheet({
             initial="offscreen"
             animate="onscreen"
             exit="leave"
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-[81] flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-[81] flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:px-4 sm:pb-[max(1rem,env(safe-area-inset-bottom,0px))]"
             style={{ willChange: 'transform' }}
           >
-            <div className="pointer-events-auto w-full max-w-[430px] overflow-hidden rounded-[32px] bg-[#222222] shadow-[0_-8px_40px_rgba(0,0,0,0.45)]">
+            <div className="pointer-events-auto w-full min-w-0 max-w-[430px] overflow-hidden rounded-[28px] bg-[#222222] shadow-[0_-8px_40px_rgba(0,0,0,0.45)] sm:rounded-[32px]">
               <div className="px-5 pt-5 pb-5">
                 <div className="flex items-start justify-between gap-3">
                   <h2 id="checkout-sheet-title" className="text-[22px] font-bold tracking-[-0.02em] text-white">

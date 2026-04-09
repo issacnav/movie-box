@@ -30,7 +30,7 @@ export default function ShowtimeGrid({
 
   return (
     <div
-      className={`w-full max-w-full ${className}`}
+      className={`w-full min-w-0 max-w-full ${className}`}
       role="group"
       aria-label="Available showtimes"
     >

@@ -1,7 +1,10 @@
 import { useId, useMemo } from 'react'
+import { motion } from 'framer-motion'
 import { InteractiveCard } from './InteractiveCard'
 import { TICKET_ASPECT_RATIO_CLASS, TICKET_MAX_WIDTH_CLASS } from '../constants/ticketLayout.js'
 import { TicketSilhouetteDefs } from './TicketSilhouette.jsx'
+
+const MotionDiv = motion.div
 
 /** Seeded PRNG for stable barcode per ticket. */
 function seedFromString(s) {
@@ -81,18 +84,53 @@ export default function DigitalTicketScreen({
   const rawId = useId()
   const maskId = `ticket-mask-${rawId.replace(/\W/g, '')}`
 
+  const ticketEntrance = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return { initial: false, transition: { duration: 0 } }
+    }
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduced) {
+      return { initial: false, transition: { duration: 0 } }
+    }
+    return {
+      /** Clear read after loader unmounts: hold a beat, then ~0.5s fade + slower spring scale. */
+      initial: { scale: 0.84, opacity: 0.25 },
+      transition: {
+        delay: 0.08,
+        opacity: {
+          duration: 0.52,
+          ease: [0.22, 1, 0.36, 1],
+        },
+        scale: {
+          type: 'spring',
+          stiffness: 82,
+          damping: 15,
+          mass: 1.05,
+        },
+      },
+    }
+  }, [])
+
   return (
     <div
-      className="ticket-fullscreen fixed inset-0 z-[70] flex min-h-[100dvh] flex-col items-center justify-center overflow-y-auto bg-black px-5 py-8"
+      className="ticket-fullscreen fixed inset-0 z-[70] flex h-[100dvh] max-h-[100dvh] min-h-0 w-full min-w-0 flex-col items-center justify-center overflow-x-hidden overflow-y-auto overscroll-y-contain bg-black py-5 sm:py-8"
       style={{
-        paddingLeft: 'max(1.25rem, env(safe-area-inset-left))',
-        paddingRight: 'max(1.25rem, env(safe-area-inset-right))',
-        paddingTop: 'max(2rem, env(safe-area-inset-top))',
-        paddingBottom: 'max(2rem, env(safe-area-inset-bottom))',
+        paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
+        paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
+        paddingTop: 'max(1rem, env(safe-area-inset-top, 0px))',
+        paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))',
+        boxSizing: 'border-box',
       }}
     >
+      <MotionDiv
+        className={`flex w-full flex-col items-stretch ${TICKET_MAX_WIDTH_CLASS}`}
+        initial={ticketEntrance.initial}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={ticketEntrance.transition}
+        style={{ transformOrigin: '50% 45%' }}
+      >
       <div
-        className={`relative w-full ${TICKET_MAX_WIDTH_CLASS}`}
+        className="relative w-full"
         style={{
           filter: 'drop-shadow(0 22px 50px rgba(0,0,0,0.75))',
         }}
@@ -258,13 +296,14 @@ export default function DigitalTicketScreen({
       <button
         type="button"
         onClick={onDone}
-        className={`mt-8 h-[48px] w-full ${TICKET_MAX_WIDTH_CLASS} cursor-pointer rounded-full border-none bg-yellow text-[15px] font-semibold text-dark`}
+        className="mt-5 h-[46px] w-full min-w-0 cursor-pointer rounded-full border-none bg-yellow text-[14px] font-semibold text-dark sm:mt-8 sm:h-[48px] sm:text-[15px]"
         style={{
           boxShadow: '0 4px 20px -4px rgba(245,197,24,0.35), 0 1px 3px rgba(245,197,24,0.15)',
         }}
       >
         Done
       </button>
+      </MotionDiv>
     </div>
   )
 }

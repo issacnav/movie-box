@@ -1,7 +1,7 @@
 export default function MoviePoster({ posterUrl, title = 'Dune 3' }) {
   return (
-    <div className="relative w-full px-4">
-      <div className="poster-card rounded-[20px] overflow-hidden aspect-[3/4] max-h-[520px]">
+    <div className="relative w-full min-w-0 px-3 sm:px-4">
+      <div className="poster-card aspect-[3/4] max-h-[min(32rem,52svh)] w-full overflow-hidden rounded-[20px] sm:max-h-[520px]">
         {posterUrl ? (
           <img
             src={posterUrl}

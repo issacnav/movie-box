@@ -11,7 +11,7 @@ export default function MiniMovieCardRow({
   hidePosterAndText = false,
 }) {
   return (
-    <div className="flex items-center gap-4 mx-6 mt-6">
+    <div className="mx-5 mt-5 flex min-w-0 items-center gap-3 sm:mx-6 sm:mt-6 sm:gap-4">
       <div
         ref={miniCardRef}
         className="w-[120px] h-[80px] rounded-[12px] overflow-hidden shrink-0"

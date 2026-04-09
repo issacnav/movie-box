@@ -151,7 +151,7 @@ function TicketMascot({ count }) {
   return (
     <div
       ref={containerRef}
-      className="mx-auto flex h-[220px] w-full items-center justify-center overflow-hidden"
+      className="mx-auto flex h-[min(220px,30svh)] min-h-[120px] w-full items-center justify-center overflow-hidden sm:h-[220px] sm:min-h-0"
     >
       <div className="flex items-end justify-center">
         {Array.from({ length: safeCount }, (_, index) => {
@@ -209,8 +209,8 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
   }, [active])
 
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
-      <StaggerChild index={0} active={active} className="ml-4 mt-4 shrink-0 self-start">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden pt-[env(safe-area-inset-top,0px)]">
+      <StaggerChild index={0} active={active} className="ml-3 mt-2 shrink-0 self-start sm:ml-4 sm:mt-3">
         <button
           type="button"
           onClick={onBack}
@@ -226,7 +226,7 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
       </StaggerChild>
 
       <motion.div
-        className="hide-scrollbar mx-6 mt-8 flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto"
+        className="hide-scrollbar mx-5 mt-6 flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto sm:mx-6 sm:mt-8"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         initial={reduceMotion ? IOS_TICKET_MAIN_ENTER_REDUCED : IOS_TICKET_MAIN_ENTER_INITIAL}
         animate={IOS_TICKET_MAIN_ENTER_ANIMATE}
@@ -234,17 +234,17 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
       >
         <StaggerChild index={1} active={active} className="h-px w-full shrink-0 bg-white/10" />
 
-        <StaggerChild index={2} active={active} className="shrink-0 pt-10">
-          <h2 className="text-[24px] font-bold text-white">Who&apos;s going?</h2>
-          <p className="mt-1 text-[14px] text-gray-text">Select tickets amount</p>
+        <StaggerChild index={2} active={active} className="shrink-0 pt-6 sm:pt-10">
+          <h2 className="text-[21px] font-bold text-white sm:text-[24px]">Who&apos;s going?</h2>
+          <p className="mt-1 text-[13px] text-gray-text sm:text-[14px]">Select tickets amount</p>
         </StaggerChild>
 
-        <div className="flex min-h-0 flex-1 flex-col justify-center pb-4">
-          <StaggerChild index={3} active={active} className="shrink-0 pt-8">
+        <div className="flex min-h-0 flex-1 flex-col justify-center pb-2 sm:pb-4">
+          <StaggerChild index={3} active={active} className="shrink-0 pt-4 sm:pt-8">
             <TicketMascot count={count} />
           </StaggerChild>
 
-          <StaggerChild index={4} active={active} className="shrink-0 pt-6">
+          <StaggerChild index={4} active={active} className="shrink-0 pt-4 sm:pt-6">
             <div
               className="mx-auto flex w-full items-center justify-between gap-6"
               style={{ maxWidth: `${TICKET_COUNTER_MAX_PX}px` }}
@@ -282,7 +282,7 @@ export default function TicketScreen({ posterUrl, movie, onBack, onContinue, act
       <StaggerChild
         index={5}
         active={active}
-        className="shrink-0 px-6 pt-3 pb-[max(2rem,env(safe-area-inset-bottom))]"
+        className="shrink-0 px-5 pt-2 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:pt-3 sm:pb-[max(2rem,env(safe-area-inset-bottom,0px))]"
       >
         <button
           type="button"

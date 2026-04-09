@@ -74,7 +74,7 @@ const THEATER_FRAME_MAX_WIDTH = 360
 
 function SeatSelectorHeader({ onBack }) {
   return (
-    <header className="shrink-0 px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-1">
+    <header className="shrink-0 px-5 pt-[max(0.75rem,env(safe-area-inset-top,0px))] pb-1 sm:px-6 sm:pt-[max(1rem,env(safe-area-inset-top,0px))]">
       <button
         type="button"
         onClick={onBack}
@@ -225,7 +225,7 @@ function SeatHelperText() {
 
 function BottomCTA({ disabled, onContinue }) {
   return (
-    <div className="shrink-0 px-6 pt-4 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
+    <div className="shrink-0 px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:pt-4 sm:pb-[max(1.75rem,env(safe-area-inset-bottom,0px))]">
       <button
         type="button"
         disabled={disabled}
@@ -605,10 +605,10 @@ export default function SeatSelectorScreen({
           <SeatSelectorHeader onBack={onBack} />
         </MotionDiv>
 
-        <div className="relative flex min-h-0 flex-1 overflow-y-auto hide-scrollbar">
-          <div className="flex min-h-full w-full flex-col justify-center gap-6 py-5">
+        <div className="relative flex min-h-0 min-w-0 flex-1 overflow-y-auto hide-scrollbar">
+          <div className="flex min-h-full w-full min-w-0 flex-col justify-center gap-4 py-4 sm:gap-6 sm:py-5">
           <MotionDiv
-            className="mx-auto w-full shrink-0 px-6"
+            className="mx-auto w-full min-w-0 shrink-0 px-5 sm:px-6"
             style={{ maxWidth: `${THEATER_FRAME_MAX_WIDTH}px`, ...SECTION_ORIGIN }}
             initial={previewEnter.initial}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -638,7 +638,7 @@ export default function SeatSelectorScreen({
           </MotionDiv>
 
           <MotionDiv
-            className="flex shrink-0 flex-col items-center gap-2.5 px-6"
+            className="flex shrink-0 flex-col items-center gap-2.5 px-5 sm:px-6"
             style={SECTION_ORIGIN}
             initial={blockEnter.initial}
             animate={{ opacity: 1, y: 0, scale: 1 }}

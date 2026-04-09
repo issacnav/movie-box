@@ -2,7 +2,7 @@ import { ChevronDown } from 'lucide-react'
 
 export default function TopNav() {
   return (
-    <nav className="flex items-center justify-between px-6 pt-3 pb-4">
+    <nav className="flex items-center justify-between px-5 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 sm:px-6 sm:pb-4">
       <div className="flex items-center gap-1.5">
         <span className="text-[22px] font-semibold tracking-tight text-white">
           Now Showing

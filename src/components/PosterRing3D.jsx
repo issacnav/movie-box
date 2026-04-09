@@ -12,11 +12,14 @@ const MotionDiv = motion.div
 const STEP_SENSITIVITY = 0.42
 
 /** Design-size layout (scaled down to fit the flex slot so buttons stay on-screen). */
-const BASE_POSTER_W = 228
+const BASE_POSTER_W = 258
 const BASE_POSTER_H = Math.round((BASE_POSTER_W * 4) / 3)
-const BASE_RADIUS = 218
+/** ~same proportion as prior (218/228) so side cards stay balanced on the ring. */
+const BASE_RADIUS = Math.round(218 * (BASE_POSTER_W / 228))
 const DESIGN_SCENE_W = 430
-const DESIGN_SCENE_H = BASE_POSTER_H + 96
+/** Tighter vertical padding than before — hero fills the stage; less “floating card” gap. */
+const DESIGN_SCENE_VERTICAL_PAD = 48
+const DESIGN_SCENE_H = BASE_POSTER_H + DESIGN_SCENE_VERTICAL_PAD
 
 function frontIndexFromRotation(rotationDeg, count) {
   const step = 360 / count
@@ -60,7 +63,7 @@ export default function PosterRing3D({
       const w = el.clientWidth
       const h = el.clientHeight
       if (w < 8 || h < 8) return
-      const s = Math.min(w / DESIGN_SCENE_W, h / DESIGN_SCENE_H, 1) * 0.98
+      const s = Math.min(w / DESIGN_SCENE_W, h / DESIGN_SCENE_H, 1) * 0.995
       setScale(s)
     }
 
@@ -157,7 +160,7 @@ export default function PosterRing3D({
         >
           <div
             className="relative flex h-full w-full flex-col items-center justify-center"
-            style={{ perspective: 1500, perspectiveOrigin: '50% 40%' }}
+            style={{ perspective: 1650, perspectiveOrigin: '50% 42%' }}
           >
             <div
               role="listbox"
@@ -209,10 +212,14 @@ export default function PosterRing3D({
                         className="h-full w-full"
                       >
                         <div
-                          className={`poster-card h-full w-full overflow-hidden rounded-[20px] shadow-[0_24px_64px_rgba(0,0,0,0.65)] ring-1 ring-white/[0.09] ${isFront ? '' : 'opacity-[0.38]'}`}
+                          className={`poster-card h-full w-full overflow-hidden rounded-[22px] ${
+                            isFront
+                              ? 'shadow-[0_28px_72px_-12px_rgba(0,0,0,0.75),0_0_0_1px_rgba(255,255,255,0.1),0_0_64px_-24px_rgba(245,197,24,0.14)] ring-1 ring-white/[0.11]'
+                              : 'shadow-[0_16px_48px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.06]'
+                          } ${isFront ? '' : 'opacity-[0.36]'}`}
                           style={{
-                            transform: isFront ? 'scale(1.02)' : 'scale(0.9)',
-                            transition: 'opacity 0.22s ease, transform 0.22s ease',
+                            transform: isFront ? 'scale(1.03)' : 'scale(0.9)',
+                            transition: 'opacity 0.24s cubic-bezier(0.22,1,0.36,1), transform 0.24s cubic-bezier(0.22,1,0.36,1), box-shadow 0.24s ease',
                           }}
                         >
                           <img
@@ -221,7 +228,18 @@ export default function PosterRing3D({
                             className="h-full w-full object-cover object-top"
                             draggable={false}
                           />
-                          <div className="pointer-events-none absolute inset-0 rounded-[20px] bg-gradient-to-t from-black/35 via-transparent to-black/10" />
+                          <div
+                            className={`pointer-events-none absolute inset-0 rounded-[22px] bg-gradient-to-t from-black/40 via-transparent to-black/[0.12] ${isFront ? 'opacity-100' : 'opacity-90'}`}
+                          />
+                          {isFront ? (
+                            <div
+                              className="pointer-events-none absolute inset-0 rounded-[22px]"
+                              style={{
+                                boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.1)',
+                              }}
+                              aria-hidden
+                            />
+                          ) : null}
                         </div>
                       </div>
                     </div>

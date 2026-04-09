@@ -27,7 +27,7 @@ export const FEATURED_MOVIES = [
     duration: '150 min',
     imdbRating: '8.4',
     previewVideoUrl: null,
-    trailerYoutubeUrl: '',
+    trailerYoutubeUrl: 'https://www.youtube.com/watch?v=S2sR2_HNJV0',
   },
   {
     id: 'spider-man-bnd',
@@ -38,7 +38,7 @@ export const FEATURED_MOVIES = [
     duration: '128 min',
     imdbRating: '8.2',
     previewVideoUrl: null,
-    trailerYoutubeUrl: '',
+    trailerYoutubeUrl: 'https://www.youtube.com/watch?v=8TZMtslA3UY',
   },
   {
     id: 'the-odyssey',
@@ -49,6 +49,6 @@ export const FEATURED_MOVIES = [
     duration: '155 min',
     imdbRating: '8.1',
     previewVideoUrl: null,
-    trailerYoutubeUrl: '',
+    trailerYoutubeUrl: 'https://www.youtube.com/watch?v=Mzw2ttJD2qQ',
   },
 ]
