@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useLayoutEffect } from 'react'
+import { useState, useRef, useCallback, useLayoutEffect, useMemo } from 'react'
 import TopNav from './components/TopNav'
 import MoviePoster from './components/MoviePoster'
 import MovieInfo from './components/MovieInfo'
@@ -7,10 +7,9 @@ import BottomNav from './components/BottomNav'
 import BookingScreen from './components/BookingScreen'
 import TicketScreen from './components/TicketScreen'
 import SeatSelectorScreen from './components/SeatSelectorScreen'
-import dunePreviewVideo from '../dune.mp4'
+import CheckoutSheet from './components/CheckoutSheet'
 
 const POSTER_URL = '/poster.jpg'
-const CINEMA_PREVIEW_URL = dunePreviewVideo
 
 const MOVIE = {
   title: 'Dune 3',
@@ -18,6 +17,7 @@ const MOVIE = {
   genre: 'Sci-Fi',
   duration: '165 min',
   imdbRating: '8.6',
+  previewVideoUrl: '/dune.mp4',
 }
 
 function relativeRect(el, container) {
@@ -50,6 +50,14 @@ function App() {
   const [screen, setScreen] = useState('home')
   const [ticketQty, setTicketQty] = useState(1)
   const [seatSummary, setSeatSummary] = useState(null)
+  const [bookingWhenLine, setBookingWhenLine] = useState(null)
+  const [bookingScreenNumber, setBookingScreenNumber] = useState(2)
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
+
+  const checkoutTotalFormatted = useMemo(() => {
+    const perSeat = 21.99 / 3
+    return `$${(perSeat * ticketQty).toFixed(2)}`
+  }, [ticketQty])
   const containerRef = useRef(null)
   const posterCardRef = useRef(null)
   const overlayRef = useRef(null)
@@ -80,15 +88,29 @@ function App() {
     setScreen('morphing-back')
   }, [])
 
-  const handleBookingContinue = useCallback(() => setScreen('tickets'), [])
+  const handleBookingContinue = useCallback((detail) => {
+    if (detail?.whenLine) setBookingWhenLine(detail.whenLine)
+    if (detail?.screenNumber != null) setBookingScreenNumber(detail.screenNumber)
+    setScreen('tickets')
+  }, [])
   const handleTicketsBack = useCallback(() => setScreen('booking'), [])
   const handleTicketsContinue = useCallback((count) => {
     setTicketQty(count)
     setScreen('seats')
   }, [])
-  const handleSeatsBack = useCallback(() => setScreen('tickets'), [])
+  const handleSeatsBack = useCallback(() => {
+    setCheckoutOpen(false)
+    setScreen('tickets')
+  }, [])
   const handleSeatsContinue = useCallback((payload) => {
     setSeatSummary(payload?.summary ?? null)
+    setCheckoutOpen(true)
+  }, [])
+
+  const handleCheckoutClose = useCallback(() => setCheckoutOpen(false), [])
+
+  const handleCheckoutPay = useCallback(() => {
+    setCheckoutOpen(false)
     setScreen('confirmation')
   }, [])
 
@@ -268,15 +290,27 @@ function App() {
           className="seat-fullscreen ticket-fullscreen fixed inset-0 z-[60] flex h-[100dvh] max-h-[100dvh] w-full justify-center overflow-hidden overscroll-none bg-[#050506]"
           style={{ paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
         >
-          <div className="flex h-full min-h-0 w-full max-w-[430px] flex-col overflow-hidden">
+          <div className="relative flex h-full min-h-0 w-full max-w-[430px] flex-col overflow-hidden">
             <SeatSelectorScreen
-              posterUrl={POSTER_URL}
-              previewVideoUrl={CINEMA_PREVIEW_URL}
               movie={MOVIE}
               ticketQty={ticketQty}
               onBack={handleSeatsBack}
               onContinue={handleSeatsContinue}
               active={isSeats}
+            />
+            <CheckoutSheet
+              open={checkoutOpen}
+              onClose={handleCheckoutClose}
+              onPay={handleCheckoutPay}
+              posterUrl={POSTER_URL}
+              movie={MOVIE}
+              whenLine={bookingWhenLine ?? 'Pick a showtime'}
+              detailLine={
+                seatSummary
+                  ? `Screen ${bookingScreenNumber} · ${seatSummary}`
+                  : `Screen ${bookingScreenNumber}`
+              }
+              totalFormatted={checkoutTotalFormatted}
             />
           </div>
         </div>
@@ -298,6 +332,9 @@ function App() {
             type="button"
             onClick={() => {
               setSeatSummary(null)
+              setBookingWhenLine(null)
+              setBookingScreenNumber(2)
+              setCheckoutOpen(false)
               setScreen('home')
             }}
             className="mt-2 h-[48px] px-8 rounded-full bg-yellow text-dark text-[15px] font-semibold border-none cursor-pointer"

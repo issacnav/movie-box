@@ -10,6 +10,14 @@ const DAYS = [
   { date: 14, day: 'F' },
 ]
 
+/** Demo labels for checkout — aligned with date chips (April). */
+const DATE_LINE_BY_DATE = {
+  11: 'Tue, Apr 11',
+  12: 'Wed, Apr 12',
+  13: 'Thu, Apr 13',
+  14: 'Fri, Apr 14',
+}
+
 /** Dates that open the showtime panel (above Continue) */
 const DATES_WITH_SHOWTIMES = [11, 12, 13]
 
@@ -177,7 +185,15 @@ export default function BookingScreen({
         <button
           type="button"
           disabled={!canContinue}
-          onClick={canContinue ? onContinue : undefined}
+          onClick={
+            canContinue
+              ? () =>
+                  onContinue?.({
+                    whenLine: `${DATE_LINE_BY_DATE[selectedDate] ?? ''} at ${selectedShowtime}`,
+                    screenNumber: 2,
+                  })
+              : undefined
+          }
           className={`w-full h-[52px] rounded-full text-[15px] font-semibold tracking-[-0.01em] border-none transition-all duration-200 ease-out ${
             canContinue
               ? 'bg-yellow text-dark cursor-pointer active:scale-[0.98] active:brightness-95'

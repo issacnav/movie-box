@@ -1,5 +1,22 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useId, useRef } from 'react'
 import { ArrowLeft, ChevronDown } from 'lucide-react'
+
+/** Cinema screen art: outer frame + inner picture area (video clips to inner only) */
+const SCREEN_OUTER_PATH =
+  'M82 115 C220 82 360 60 504 58 C648 60 788 82 932 114 L886 260 C764 228 638 214 504 212 C370 214 244 228 125 260 Z'
+const SCREEN_INNER_PATH =
+  'M90 123 C228 90 364 68 504 66 C644 68 780 89 924 121 L881 252 C761 222 637 210 504 208 C371 210 247 223 130 255 Z'
+const SCREEN_FRAME_FILL = '#2F3337'
+const SCREEN_INNER_FILL = '#F3E6C9'
+/** Full user space (clips & foreignObject still use this) */
+const SCREEN_W = 1009
+const SCREEN_H = 416
+/**
+ * Cropped viewBox: art only reaches ~y=260; 0–416 left a large empty band under the screen,
+ * which stacked as a big gap before the reflection.
+ */
+const SCREEN_VIEWBOX = '52 44 906 242'
+const screenViewBox = SCREEN_VIEWBOX
 
 /** Theater-style rows: left block, center aisle, right block. Numbers = seat count per side. */
 const THEATER_ROWS = [
@@ -29,8 +46,7 @@ const UNAVAILABLE_IDS = new Set([
   '8-R3',
 ])
 
-const THEATER_FRAME_MAX_WIDTH = 320
-const THEATER_SCREEN_RATIO = '2.75 / 1'
+const THEATER_FRAME_MAX_WIDTH = 360
 
 function SeatSelectorHeader({ onBack }) {
   return (
@@ -46,54 +62,6 @@ function SeatSelectorHeader({ onBack }) {
       <h1 className="text-[28px] font-bold tracking-[-0.02em] text-white">Where to Sit?</h1>
       <p className="mt-0.5 text-[13px] font-medium tracking-wide uppercase text-white/40">Select Seats</p>
     </header>
-  )
-}
-
-function CinemaScreenPreview({ posterUrl, previewVideoUrl, title }) {
-  return (
-    <div
-      className="relative mx-auto w-full px-5"
-      style={{ maxWidth: `${THEATER_FRAME_MAX_WIDTH}px` }}
-    >
-      <div
-        className="relative z-[1] overflow-hidden"
-        style={{
-          borderRadius: '50% / 16%',
-          aspectRatio: THEATER_SCREEN_RATIO,
-          transform: 'perspective(560px) rotateX(6deg)',
-          transformOrigin: '50% 0%',
-          boxShadow: '0 8px 40px -8px rgba(0,0,0,0.9), 0 2px 12px -2px rgba(245,197,24,0.08)',
-        }}
-      >
-        <img
-          src={posterUrl}
-          alt=""
-          className="absolute inset-0 h-full w-full scale-110 object-cover object-[50%_30%] opacity-35"
-          style={{ filter: 'blur(4px) saturate(1.05) brightness(0.52)' }}
-        />
-        {previewVideoUrl && (
-          <video
-            src={previewVideoUrl}
-            poster={posterUrl}
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            className="h-full w-full scale-[1.08] object-cover object-center"
-            style={{ filter: 'saturate(1.02) brightness(0.82)' }}
-            aria-hidden="true"
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/60" />
-        {/* Thin bright edge at the bottom to simulate screen edge lighting */}
-        <div
-          className="absolute inset-x-0 bottom-0 h-[1px]"
-          style={{ background: 'linear-gradient(90deg, transparent 10%, rgba(255,255,255,0.08) 50%, transparent 90%)' }}
-        />
-      </div>
-      <span className="sr-only">Screening: {title}</span>
-    </div>
   )
 }
 
@@ -191,7 +159,7 @@ function SeatsTogetherChip({ count }) {
 
 function SeatHelperText() {
   return (
-    <p className="mt-2 text-center text-[11px] leading-snug tracking-wide text-white/35">
+    <p className="text-center text-[11px] leading-snug tracking-wide text-white/35">
       Showing where you can sit together
     </p>
   )
@@ -199,7 +167,7 @@ function SeatHelperText() {
 
 function BottomCTA({ disabled, onContinue }) {
   return (
-    <div className="shrink-0 px-6 pt-1 pb-[max(2rem,env(safe-area-inset-bottom))]">
+    <div className="shrink-0 px-6 pt-5 pb-[max(2rem,env(safe-area-inset-bottom))]">
       <button
         type="button"
         disabled={disabled}
@@ -219,17 +187,205 @@ function BottomCTA({ disabled, onContinue }) {
   )
 }
 
+/** Alpha mask: stronger at the top (near the screen), fades to invisible toward the floor */
+const REFLECTION_MASK =
+  'linear-gradient(to bottom, #000 0%, rgba(0,0,0,0.55) 34%, rgba(0,0,0,0.18) 66%, transparent 100%)'
+/** Overall reflection strength — keep within ~0.08–0.2 for a believable floor reflection */
+const REFLECTION_OPACITY_VIDEO = 0.14
+const REFLECTION_OPACITY_STATIC = 0.1
+
+function CinemaScreenMedia({ videoUrl, title }) {
+  const clipId = useId().replace(/:/g, '')
+  const reflectClipId = useId().replace(/:/g, '')
+  const innerGradId = useId().replace(/:/g, '')
+  const frameShadowId = useId().replace(/:/g, '')
+  const mainVideoRef = useRef(null)
+  const reflectVideoRef = useRef(null)
+  const [videoFailed, setVideoFailed] = useState(false)
+  const showVideo = Boolean(videoUrl) && !videoFailed
+
+  const syncReflectionTime = useCallback(() => {
+    const main = mainVideoRef.current
+    const reflect = reflectVideoRef.current
+    if (!main || !reflect) return
+    const delta = Math.abs(reflect.currentTime - main.currentTime)
+    if (delta > 0.12) reflect.currentTime = main.currentTime
+  }, [])
+
+  useEffect(() => {
+    if (!showVideo) return
+    const main = mainVideoRef.current
+    const reflect = reflectVideoRef.current
+    if (!main || !reflect) return
+
+    const mirrorPlayState = () => {
+      if (main.paused) reflect.pause()
+      else reflect.play().catch(() => {})
+    }
+
+    const onSeeked = () => {
+      reflect.currentTime = main.currentTime
+    }
+
+    main.addEventListener('play', mirrorPlayState)
+    main.addEventListener('pause', mirrorPlayState)
+    main.addEventListener('seeked', onSeeked)
+    main.addEventListener('timeupdate', syncReflectionTime)
+
+    reflect.currentTime = main.currentTime
+    if (!main.paused) reflect.play().catch(() => {})
+
+    return () => {
+      main.removeEventListener('play', mirrorPlayState)
+      main.removeEventListener('pause', mirrorPlayState)
+      main.removeEventListener('seeked', onSeeked)
+      main.removeEventListener('timeupdate', syncReflectionTime)
+    }
+  }, [showVideo, syncReflectionTime, videoUrl])
+
+  const videoStyle = {
+    display: 'block',
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    objectPosition: 'center',
+    pointerEvents: 'none',
+  }
+
+  const foInnerStyle = {
+    width: SCREEN_W,
+    height: SCREEN_H,
+    overflow: 'hidden',
+    backgroundColor: '#0a0a0a',
+  }
+
+  return (
+    <div
+      className="flex w-full shrink-0 flex-col"
+      role={title ? 'group' : undefined}
+      aria-label={title ? `Screening: ${title}` : undefined}
+      aria-hidden={title ? undefined : true}
+    >
+      <svg viewBox={screenViewBox} className="block h-auto w-full shrink-0">
+        <defs>
+          <filter
+            id={frameShadowId}
+            x="-8%"
+            y="-8%"
+            width="116%"
+            height="116%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feDropShadow dx="0" dy="5" stdDeviation="5" floodColor="#000000" floodOpacity="0.38" />
+          </filter>
+          <linearGradient id={innerGradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#FAF3E3" />
+            <stop offset="55%" stopColor="#F3E6C9" />
+            <stop offset="100%" stopColor="#E5D4B0" />
+          </linearGradient>
+          <clipPath id={clipId} clipPathUnits="userSpaceOnUse">
+            <path d={SCREEN_INNER_PATH} />
+          </clipPath>
+        </defs>
+        <path d={SCREEN_OUTER_PATH} fill={SCREEN_FRAME_FILL} filter={`url(#${frameShadowId})`} />
+        {showVideo ? (
+          <>
+            <foreignObject x="0" y="0" width={SCREEN_W} height={SCREEN_H} clipPath={`url(#${clipId})`}>
+              <div xmlns="http://www.w3.org/1999/xhtml" style={foInnerStyle}>
+                <video
+                  ref={mainVideoRef}
+                  src={videoUrl}
+                  muted
+                  playsInline
+                  autoPlay
+                  loop
+                  preload="metadata"
+                  style={videoStyle}
+                  onError={() => setVideoFailed(true)}
+                />
+              </div>
+            </foreignObject>
+            <path
+              d={SCREEN_INNER_PATH}
+              fill="none"
+              stroke="rgba(0,0,0,0.2)"
+              strokeWidth="1.25"
+              pointerEvents="none"
+            />
+          </>
+        ) : (
+          <path
+            d={SCREEN_INNER_PATH}
+            fill={`url(#${innerGradId})`}
+            stroke="rgba(0,0,0,0.14)"
+            strokeWidth="1"
+          />
+        )}
+      </svg>
+
+      <div
+        className="pointer-events-none w-full shrink-0 overflow-hidden"
+        style={{
+          marginTop: '-4px',
+          WebkitMaskImage: REFLECTION_MASK,
+          maskImage: REFLECTION_MASK,
+          WebkitMaskRepeat: 'no-repeat',
+          maskRepeat: 'no-repeat',
+          WebkitMaskSize: '100% 100%',
+          maskSize: '100% 100%',
+          opacity: showVideo ? REFLECTION_OPACITY_VIDEO : REFLECTION_OPACITY_STATIC,
+        }}
+        aria-hidden
+      >
+        <div className="w-full" style={{ filter: 'blur(1px)' }}>
+          <svg
+            viewBox={screenViewBox}
+            preserveAspectRatio="xMidYMid meet"
+            className="block h-auto w-full"
+            style={{ transform: 'scaleY(-1)' }}
+          >
+          <defs>
+            <clipPath id={reflectClipId} clipPathUnits="userSpaceOnUse">
+              <path d={SCREEN_INNER_PATH} />
+            </clipPath>
+          </defs>
+          {showVideo ? (
+            <foreignObject x="0" y="0" width={SCREEN_W} height={SCREEN_H} clipPath={`url(#${reflectClipId})`}>
+              <div xmlns="http://www.w3.org/1999/xhtml" style={foInnerStyle}>
+                <video
+                  ref={reflectVideoRef}
+                  src={videoUrl}
+                  muted
+                  playsInline
+                  autoPlay
+                  loop
+                  preload="metadata"
+                  style={videoStyle}
+                  tabIndex={-1}
+                />
+              </div>
+            </foreignObject>
+          ) : (
+            <path d={SCREEN_INNER_PATH} fill={SCREEN_INNER_FILL} fillOpacity={0.35} />
+          )}
+          </svg>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SeatMapSection({ layout, seatStates, onToggle }) {
   return (
-    <div className="relative mx-auto w-full min-w-0 shrink-0 px-2">
+    <div className="relative mx-auto w-full min-w-0 shrink-0 px-6">
       <div
         className="relative mx-auto flex w-full flex-col items-center"
         style={{ maxWidth: `${THEATER_FRAME_MAX_WIDTH}px`, perspective: '500px' }}
       >
         <div
-          className="w-full px-3 pt-1"
+          className="w-full pt-0"
           style={{
-            transform: 'perspective(550px) rotateX(8deg) scale(0.96)',
+            transform: 'perspective(550px) rotateX(10deg) scale(0.96)',
             transformOrigin: '50% 0%',
           }}
         >
@@ -253,8 +409,6 @@ function buildSeatModel(layout) {
 }
 
 export default function SeatSelectorScreen({
-  posterUrl,
-  previewVideoUrl,
   movie,
   ticketQty,
   onBack,
@@ -342,14 +496,17 @@ export default function SeatSelectorScreen({
       <SeatSelectorHeader onBack={onBack} />
 
       <div className="relative flex min-h-0 flex-1 overflow-y-auto hide-scrollbar">
-        <div className="flex min-h-full w-full flex-col justify-center gap-4 py-4">
-          <div className="shrink-0">
-            <CinemaScreenPreview posterUrl={posterUrl} previewVideoUrl={previewVideoUrl} title={movie?.title} />
+        <div className="flex min-h-full w-full flex-col justify-center gap-5 py-4">
+          <div
+            className="mx-auto w-full shrink-0 px-6"
+            style={{ maxWidth: `${THEATER_FRAME_MAX_WIDTH}px` }}
+          >
+            <CinemaScreenMedia videoUrl={movie?.previewVideoUrl} title={movie?.title} />
           </div>
 
           <SeatMapSection layout={layout} seatStates={seatStates} onToggle={toggle} />
 
-          <div className="flex shrink-0 flex-col items-center px-6 pt-1">
+          <div className="mt-4 flex shrink-0 flex-col items-center gap-3 px-6">
             <SeatsTogetherChip count={ticketQty} />
             <SeatHelperText />
           </div>
