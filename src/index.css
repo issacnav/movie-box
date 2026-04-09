@@ -2,6 +2,7 @@
 
 @theme {
   --font-sans: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: 'Montserrat', 'Inter', system-ui, sans-serif;
   --color-dark: #0D0D0F;
   --color-dark-card: #1A1A1E;
   --color-dark-surface: #242428;

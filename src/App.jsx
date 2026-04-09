@@ -1,30 +1,23 @@
 import { useState, useRef, useCallback, useLayoutEffect, useMemo, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 
 const MotionDiv = motion.div
+import { Star } from 'lucide-react'
 import TopNav from './components/TopNav'
+import TheatreTopNav from './components/TheatreTopNav'
+import HomeFeedHeader from './components/HomeFeedHeader'
+import PosterRing3D from './components/PosterRing3D'
 import MoviePoster from './components/MoviePoster'
 import MovieInfo from './components/MovieInfo'
 import ActionButtons from './components/ActionButtons'
 import BottomNav from './components/BottomNav'
+import { CLASSIC_HOME_MOVIE, FEATURED_MOVIES } from './data/featuredMovies'
 import BookingScreen from './components/BookingScreen'
 import TicketScreen from './components/TicketScreen'
 import SeatSelectorScreen from './components/SeatSelectorScreen'
 import CheckoutSheet from './components/CheckoutSheet'
 import TicketGeneratingScreen from './components/TicketGeneratingScreen'
 import DigitalTicketScreen from './components/DigitalTicketScreen'
-
-const POSTER_URL = '/poster.jpg'
-
-const MOVIE = {
-  title: 'Dune 3',
-  year: '2026',
-  genre: 'Sci-Fi',
-  duration: '140 min',
-  imdbRating: '8.6',
-  previewVideoUrl: '/dune.mp4',
-  trailerYoutubeUrl: 'https://www.youtube.com/watch?v=3_9vCamtuPY',
-}
 
 function relativeRect(el, container) {
   const elRect = el.getBoundingClientRect()
@@ -61,6 +54,40 @@ function ticketLoaderPreviewFromSearch() {
 }
 
 function App() {
+  /** Bottom bar: classic “Now Showing” home vs Theatre (ring browse). */
+  const [homeTab, setHomeTab] = useState('home')
+  const [selectedMovieIndex, setSelectedMovieIndex] = useState(0)
+  /** Theatre: follows ring front card during drag; keeps text in sync with posters. */
+  const [theatreDisplayIndex, setTheatreDisplayIndex] = useState(0)
+  const [homeCategoryIndex, setHomeCategoryIndex] = useState(0)
+  const [homeGenreIndex, setHomeGenreIndex] = useState(0)
+
+  const handleTheatreSnapIndex = useCallback((idx) => {
+    setSelectedMovieIndex(idx)
+  }, [])
+
+  useEffect(() => {
+    if (homeTab === 'theatre') {
+      setTheatreDisplayIndex(selectedMovieIndex)
+    }
+  }, [homeTab, selectedMovieIndex])
+
+  const activeHomeMovie = useMemo(() => {
+    if (homeTab === 'theatre') {
+      return FEATURED_MOVIES[theatreDisplayIndex] ?? FEATURED_MOVIES[0]
+    }
+    return CLASSIC_HOME_MOVIE
+  }, [homeTab, theatreDisplayIndex])
+
+  const theatreMetaTransition = useMemo(() => {
+    const reduced =
+      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    return {
+      duration: reduced ? 0.06 : 0.24,
+      ease: [0.22, 1, 0.36, 1],
+    }
+  }, [])
+
   const [screen, setScreen] = useState(() =>
     ticketLoaderPreviewFromSearch() ? 'ticket-generating' : 'home',
   )
@@ -287,12 +314,12 @@ function App() {
   return (
     <div
       ref={containerRef}
-      className="relative min-h-screen max-w-[430px] mx-auto bg-dark overflow-hidden flex flex-col"
+      className="relative mx-auto flex h-[100dvh] max-h-[100dvh] min-h-0 max-w-[430px] flex-col overflow-x-clip overflow-hidden bg-dark"
     >
       {/* Home screen — DOM stays warm under booking/confirmation; only opacity toggles */}
       {homeLayerMounted && (
         <div
-          className="flex min-h-0 flex-1 flex-col"
+          className={`flex min-h-0 flex-1 flex-col pb-24 ${homeTab === 'home' ? 'overflow-y-auto' : 'overflow-hidden'}`}
           style={{
             opacity: homeLayerVisible ? 1 : 0,
             pointerEvents: homeLayerInteractive ? 'auto' : 'none',
@@ -302,16 +329,71 @@ function App() {
           }}
           aria-hidden={!homeLayerInteractive}
         >
-          <TopNav />
-          <div ref={posterCardRef}>
-            <MoviePoster posterUrl={POSTER_URL} title={MOVIE.title} />
-          </div>
-          <MovieInfo {...MOVIE} />
-          <ActionButtons
-            onBuyTickets={handleBuyTickets}
-            trailerUrl={MOVIE.trailerYoutubeUrl}
-          />
-          <BottomNav />
+          {homeTab === 'home' ? (
+            <>
+              <TopNav />
+              <div ref={posterCardRef}>
+                <MoviePoster posterUrl={CLASSIC_HOME_MOVIE.posterUrl} title={CLASSIC_HOME_MOVIE.title} />
+              </div>
+              <MovieInfo {...CLASSIC_HOME_MOVIE} />
+              <ActionButtons
+                onBuyTickets={handleBuyTickets}
+                trailerUrl={CLASSIC_HOME_MOVIE.trailerYoutubeUrl}
+              />
+            </>
+          ) : (
+            <>
+              <TheatreTopNav onMenuPress={() => {}} onSearchPress={() => {}} />
+              <HomeFeedHeader
+                categoryIndex={homeCategoryIndex}
+                onCategoryChange={setHomeCategoryIndex}
+                genreIndex={homeGenreIndex}
+                onGenreChange={setHomeGenreIndex}
+              />
+              <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden py-1">
+                <PosterRing3D
+                  movies={FEATURED_MOVIES}
+                  activeIndex={selectedMovieIndex}
+                  onActiveIndexChange={handleTheatreSnapIndex}
+                  onLiveFrontIndexChange={setTheatreDisplayIndex}
+                  posterCardRef={posterCardRef}
+                />
+              </div>
+              <AnimatePresence initial={false} mode="popLayout">
+                <motion.div
+                  key={activeHomeMovie.id}
+                  className="flex shrink-0 flex-col items-center gap-2 px-4 pt-1"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={theatreMetaTransition}
+                >
+                  <h1 className="text-center font-[family-name:var(--font-display)] text-[21px] font-semibold leading-[1.25] tracking-tight text-white">
+                    {activeHomeMovie.title}
+                  </h1>
+                  <div className="flex h-5 items-center justify-center gap-1.5 text-white">
+                    <Star
+                      className="size-4 shrink-0 fill-yellow text-yellow"
+                      aria-hidden
+                      strokeWidth={0}
+                    />
+                    <span className="text-[15px] font-medium tabular-nums leading-none">
+                      {activeHomeMovie.imdbRating}
+                    </span>
+                  </div>
+                  <MovieInfo {...activeHomeMovie} showImdbRating={false} variant="theatre" />
+                </motion.div>
+              </AnimatePresence>
+              <div className="shrink-0">
+                <ActionButtons
+                  onBuyTickets={handleBuyTickets}
+                  trailerUrl={activeHomeMovie.trailerYoutubeUrl}
+                  compact
+                />
+              </div>
+            </>
+          )}
+          <BottomNav activeTab={homeTab} onTabChange={setHomeTab} />
         </div>
       )}
 
@@ -319,10 +401,10 @@ function App() {
       {showBookingLayer && (
         <div className="absolute inset-0" style={{ zIndex: 20, backgroundColor: '#0D0D0F' }}>
           <BookingScreen
-            posterUrl={POSTER_URL}
+            posterUrl={activeHomeMovie.posterUrl}
             onClose={handleClose}
             onContinue={handleBookingContinue}
-            movie={MOVIE}
+            movie={activeHomeMovie}
             miniCardRef={miniCardRef}
             active={bookingContentLive}
             revealStaticCopy={bookingContentLive}
@@ -353,8 +435,8 @@ function App() {
                 }}
               >
                 <TicketScreen
-                  posterUrl={POSTER_URL}
-                  movie={MOVIE}
+                  posterUrl={activeHomeMovie.posterUrl}
+                  movie={activeHomeMovie}
                   onBack={handleTicketsBack}
                   onContinue={handleTicketsContinue}
                   active={isTickets && !isSeats}
@@ -362,18 +444,9 @@ function App() {
               </MotionDiv>
             )}
             {isSeats && (
-              <MotionDiv
-                className="absolute inset-0 z-20 flex min-h-0 flex-col overflow-hidden"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{
-                  duration: 0.2,
-                  delay: 0,
-                  ease: [0.16, 1, 0.3, 1],
-                }}
-              >
+              <div className="absolute inset-0 z-20 flex min-h-0 flex-col overflow-hidden">
                 <SeatSelectorScreen
-                  movie={MOVIE}
+                  movie={activeHomeMovie}
                   ticketQty={ticketQty}
                   onBack={handleSeatsBack}
                   onContinue={handleSeatsContinue}
@@ -383,8 +456,8 @@ function App() {
                   open={checkoutOpen}
                   onClose={handleCheckoutClose}
                   onPay={handleCheckoutPay}
-                  posterUrl={POSTER_URL}
-                  movie={MOVIE}
+                  posterUrl={activeHomeMovie.posterUrl}
+                  movie={activeHomeMovie}
                   whenLine={bookingWhenLine ?? 'Pick a showtime'}
                   detailLine={
                     seatSummary
@@ -393,7 +466,7 @@ function App() {
                   }
                   totalFormatted={checkoutTotalFormatted}
                 />
-              </MotionDiv>
+              </div>
             )}
           </div>
         </div>
@@ -403,8 +476,8 @@ function App() {
 
       {isTicketReady && issuedTicketId && (
         <DigitalTicketScreen
-          posterUrl={POSTER_URL}
-          movie={MOVIE}
+          posterUrl={activeHomeMovie.posterUrl}
+          movie={activeHomeMovie}
           whenLine={bookingWhenLine ?? ''}
           detailLine={
             seatSummary
@@ -418,7 +491,7 @@ function App() {
 
       {/* Morph overlay */}
       {isMorphing && (
-        <img ref={overlayRef} src={POSTER_URL} alt="" style={{ opacity: 0 }} />
+        <img ref={overlayRef} src={activeHomeMovie.posterUrl} alt="" style={{ opacity: 0 }} />
       )}
     </div>
   )

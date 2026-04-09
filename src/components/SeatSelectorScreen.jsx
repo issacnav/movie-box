@@ -15,11 +15,10 @@ const SECTION_ENTER_Y = 112
 const SECTION_ENTER_SCALE = 0.94
 const SECTION_ORIGIN = { transformOrigin: '50% 52%' }
 
-/** Stagger order: header → preview → seat block → pill → chip → CTA */
+/** Stagger order: header → preview → seat block → chip (Continue bar: no entrance motion) */
 const DELAY_PREVIEW = 0.07
 const DELAY_SEAT_BLOCK = 0.14
 const DELAY_CHIP = 0.22
-const DELAY_CTA = 0.28
 
 /** Chair cascade starts after the seat-map *section* motion finishes (+ small gap). */
 const CHAIR_STAGGER_MS = 11
@@ -224,30 +223,6 @@ function SeatHelperText() {
   )
 }
 
-function SelectedSeatPill({ rowLabel, count, reduceMotion }) {
-  if (count <= 0 || rowLabel == null) return null
-  return (
-    <MotionDiv
-      role="status"
-      style={SECTION_ORIGIN}
-      initial={
-        reduceMotion
-          ? { opacity: 1, y: 0, scale: 1 }
-          : { opacity: 0, y: SECTION_ENTER_Y * 0.72, scale: SECTION_ENTER_SCALE }
-      }
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{
-        duration: reduceMotion ? 0 : SECTION_ENTER_DUR * 0.82,
-        ease: SECTION_EASE,
-        delay: 0,
-      }}
-      className="pointer-events-none mx-auto w-fit max-w-[min(100%,280px)] rounded-full border border-white/[0.09] bg-white/[0.07] px-5 py-2.5 text-center text-[13px] font-medium tracking-[-0.015em] text-white/[0.92] shadow-[0_12px_40px_-16px_rgba(0,0,0,0.75)] backdrop-blur-xl backdrop-saturate-150"
-    >
-      Row {rowLabel} · {count} {count === 1 ? 'seat' : 'seats'}
-    </MotionDiv>
-  )
-}
-
 function BottomCTA({ disabled, onContinue }) {
   return (
     <div className="shrink-0 px-6 pt-4 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
@@ -255,7 +230,7 @@ function BottomCTA({ disabled, onContinue }) {
         type="button"
         disabled={disabled}
         onClick={disabled ? undefined : onContinue}
-        className={`h-[54px] w-full rounded-full border-none text-[15px] font-semibold tracking-[-0.02em] transition-[transform,filter,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        className={`h-[54px] w-full rounded-full border-none text-[15px] font-semibold tracking-[-0.02em] transition-[transform,filter] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           disabled
             ? 'cursor-not-allowed bg-[#18181A] text-white/22'
             : 'cursor-pointer bg-yellow text-dark active:scale-[0.987] active:brightness-[0.97]'
@@ -603,20 +578,35 @@ export default function SeatSelectorScreen({
     onContinue?.({ seatIds: sorted, summary: `Row ${overlayRow} · ${selectedCount} seats` })
   }, [canContinue, selected, onContinue, overlayRow, selectedCount])
 
+  const shellFade = reduceMotion
+    ? { initial: { opacity: 1 }, animate: { opacity: 1 }, transition: { duration: 0 } }
+    : {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] },
+      }
+
   return (
     <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-[#0D0D0F]">
+      {/* Opacity fade only above the Continue bar — avoids animating the CTA (parent used to fade whole screen). */}
       <MotionDiv
-        className="shrink-0"
-        style={SECTION_ORIGIN}
-        initial={headerEnter.initial}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={headerEnter.transition}
+        className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+        initial={shellFade.initial}
+        animate={shellFade.animate}
+        transition={shellFade.transition}
       >
-        <SeatSelectorHeader onBack={onBack} />
-      </MotionDiv>
+        <MotionDiv
+          className="shrink-0"
+          style={SECTION_ORIGIN}
+          initial={headerEnter.initial}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={headerEnter.transition}
+        >
+          <SeatSelectorHeader onBack={onBack} />
+        </MotionDiv>
 
-      <div className="relative flex min-h-0 flex-1 overflow-y-auto hide-scrollbar">
-        <div className="flex min-h-full w-full flex-col justify-center gap-6 py-5">
+        <div className="relative flex min-h-0 flex-1 overflow-y-auto hide-scrollbar">
+          <div className="flex min-h-full w-full flex-col justify-center gap-6 py-5">
           <MotionDiv
             className="mx-auto w-full shrink-0 px-6"
             style={{ maxWidth: `${THEATER_FRAME_MAX_WIDTH}px`, ...SECTION_ORIGIN }}
@@ -647,10 +637,6 @@ export default function SeatSelectorScreen({
             />
           </MotionDiv>
 
-          <div className="flex shrink-0 flex-col items-center gap-3 px-6">
-            <SelectedSeatPill rowLabel={overlayRow} count={selectedCount} reduceMotion={reduceMotion} />
-          </div>
-
           <MotionDiv
             className="flex shrink-0 flex-col items-center gap-2.5 px-6"
             style={SECTION_ORIGIN}
@@ -664,21 +650,13 @@ export default function SeatSelectorScreen({
             <SeatsTogetherChip count={ticketQty} />
             <SeatHelperText />
           </MotionDiv>
+          </div>
         </div>
-      </div>
-
-      <MotionDiv
-        className="shrink-0"
-        style={SECTION_ORIGIN}
-        initial={blockEnter.initial}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{
-          ...blockEnter.transition,
-          delay: reduceMotion ? 0 : DELAY_CTA,
-        }}
-      >
-        <BottomCTA disabled={!canContinue} onContinue={handleContinue} />
       </MotionDiv>
+
+      <div className="shrink-0">
+        <BottomCTA disabled={!canContinue} onContinue={handleContinue} />
+      </div>
     </div>
   )
 }

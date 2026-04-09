@@ -7,12 +7,11 @@ export default function TopNav() {
         <span className="text-[22px] font-semibold tracking-tight text-white">
           Now Showing
         </span>
-        <ChevronDown size={18} className="text-white mt-0.5" strokeWidth={2.5} />
+        <ChevronDown size={18} className="mt-0.5 text-white" strokeWidth={2.5} />
       </div>
 
-      {/* Profile icon */}
-      <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center">
-        <div className="w-3 h-3 rounded-full bg-white/90" />
+      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500">
+        <div className="h-3 w-3 rounded-full bg-white/90" />
       </div>
     </nav>
   )
